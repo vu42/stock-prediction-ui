@@ -1,7 +1,18 @@
+import { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Progress } from "../../ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../ui/alert-dialog";
 import {
   Eye,
   Play,
@@ -9,13 +20,42 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner@2.0.3";
 
 interface OverviewTabProps {
   dagId: string;
+  onViewLogs?: () => void;
 }
 
-export function OverviewTab({ dagId }: OverviewTabProps) {
+export function OverviewTab({ dagId, onViewLogs }: OverviewTabProps) {
   const isRunning = false; // Toggle this to show running state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: 'rerun' | null;
+    title: string;
+    description: string;
+  }>({
+    open: false,
+    action: null,
+    title: '',
+    description: '',
+  });
+
+  const handleRerunConfirm = () => {
+    setConfirmDialog({
+      open: true,
+      action: 'rerun',
+      title: `Rerun ${dagId}?`,
+      description: 'Do you want to proceed with the same configuration?',
+    });
+  };
+
+  const executeAction = () => {
+    if (confirmDialog.action === 'rerun') {
+      toast.success('Rerun scheduled with same configuration.');
+    }
+    setConfirmDialog({ open: false, action: null, title: '', description: '' });
+  };
 
   return (
     <div className="space-y-4">
@@ -124,7 +164,8 @@ export function OverviewTab({ dagId }: OverviewTabProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="flex-1 cursor-pointer"
+                onClick={onViewLogs}
               >
                 <Eye className="w-3 h-3 mr-1" />
                 View logs
@@ -132,7 +173,8 @@ export function OverviewTab({ dagId }: OverviewTabProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="flex-1 cursor-pointer"
+                onClick={handleRerunConfirm}
               >
                 <Play className="w-3 h-3 mr-1" />
                 Rerun with same conf
@@ -142,71 +184,30 @@ export function OverviewTab({ dagId }: OverviewTabProps) {
         )}
       </Card>
 
-      {/* Recent 5 runs - Only show for vn30_data_crawler */}
-      {/* {dagId === 'vn30_data_crawler' && (
-        <Card className="p-4">
-          <h3 className="mb-3">Recent 5 runs</h3>
-          <div className="space-y-2">
-            {[
-              {
-                runId: 'scheduled__2025-11-01T17:00',
-                start: '2025-11-01 17:00:02',
-                duration: '3m 24s',
-                state: 'Success',
-              },
-              {
-                runId: 'scheduled__2025-10-31T17:00',
-                start: '2025-10-31 17:00:01',
-                duration: '3m 18s',
-                state: 'Success',
-              },
-              {
-                runId: 'scheduled__2025-10-30T17:00',
-                start: '2025-10-30 17:00:03',
-                duration: '4m 12s',
-                state: 'Success',
-              },
-              {
-                runId: 'scheduled__2025-10-29T17:00',
-                start: '2025-10-29 17:00:01',
-                duration: '—',
-                state: 'Failed',
-              },
-              {
-                runId: 'scheduled__2025-10-28T17:00',
-                start: '2025-10-28 17:00:02',
-                duration: '3m 31s',
-                state: 'Success',
-              },
-            ].map((run, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between py-2 border-b last:border-b-0 text-sm"
-              >
-                <div className="flex-1">
-                  <div className="font-mono text-xs text-gray-700">{run.runId}</div>
-                  <div className="text-xs text-gray-500">{run.start}</div>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => 
+        setConfirmDialog({ ...confirmDialog, open })
+      }>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.description}
+              {confirmDialog.action === 'rerun' && (
+                <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono">
+                  {JSON.stringify({ tickers: 'all_vn30' }, null, 2)}
                 </div>
-                <div className="text-gray-600 mx-4">{run.duration}</div>
-                <Badge
-                  className={
-                    run.state === 'Success'
-                      ? 'bg-green-100 text-green-700 border-green-200'
-                      : run.state === 'Failed'
-                      ? 'bg-red-100 text-red-700 border-red-200'
-                      : 'bg-blue-100 text-blue-700 border-blue-200'
-                  }
-                >
-                  {run.state === 'Success' && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                  {run.state === 'Failed' && <XCircle className="w-3 h-3 mr-1" />}
-                  {run.state === 'Running' && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                  {run.state}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )} */}
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeAction}>
+              Yes, proceed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -6,24 +6,31 @@ import { StockDetailPage } from "./components/pages/StockDetailPage";
 import { LoginPage } from "./components/pages/LoginPage";
 import { Button } from "./components/ui/button";
 import { LogOut } from "lucide-react";
+import { Toaster } from "./components/ui/sonner";
 
-type PageType = "home" | "stock-detail" | "training" | "pipelines";
+type PageType =
+  | "home"
+  | "stock-detail"
+  | "training"
+  | "pipelines";
 type UserRole = "enduser" | "datascientist" | null;
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [username, setUsername] = useState("");
-  const [activePage, setActivePage] = useState<PageType>("home");
-  const [selectedTicker, setSelectedTicker] = useState<string>("FPT");
+  const [activePage, setActivePage] =
+    useState<PageType>("home");
+  const [selectedTicker, setSelectedTicker] =
+    useState<string>("FPT");
 
   const handleLogin = (username: string, password: string) => {
     // Determine user role based on username
     const role: UserRole = username.startsWith("enduser")
       ? "enduser"
       : username.startsWith("ds")
-      ? "datascientist"
-      : null;
+        ? "datascientist"
+        : null;
 
     setUsername(username);
     setUserRole(role);
@@ -80,6 +87,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster />
       {/* Navigation */}
       <nav className="bg-white border-b border-gray-200 px-8 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -92,14 +100,19 @@ export default function App() {
             </h2>
             <span className="text-sm text-gray-500">
               {username} (
-              {userRole === "enduser" ? "End User" : "Data Scientist"})
+              {userRole === "enduser"
+                ? "End User"
+                : "Data Scientist"}
+              )
             </span>
           </div>
           <div className="flex items-center gap-2">
             {currentNavItems.map((item) => (
               <Button
                 key={item.key}
-                variant={activePage === item.key ? "default" : "ghost"}
+                variant={
+                  activePage === item.key ? "default" : "ghost"
+                }
                 onClick={() => setActivePage(item.key)}
               >
                 {item.label}
@@ -118,7 +131,10 @@ export default function App() {
       </nav>
 
       {/* Page Content */}
-      <div className="w-full" style={{ width: "1440px", margin: "0 auto" }}>
+      <div
+        className="w-full"
+        style={{ width: "1440px", margin: "0 auto" }}
+      >
         {activePage === "home" && (
           <HomePage onNavigateToStock={handleNavigateToStock} />
         )}
