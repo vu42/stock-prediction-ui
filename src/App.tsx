@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TrainingPage } from "./components/pages/TrainingPage";
 import { PipelinesPage } from "./components/pages/PipelinesPage";
+import { ModelsPage } from "./components/pages/ModelsPage";
 import { HomePage } from "./components/pages/HomePage";
 import { StockDetailPage } from "./components/pages/StockDetailPage";
 import { LoginPage } from "./components/pages/LoginPage";
@@ -12,7 +13,8 @@ type PageType =
   | "home"
   | "stock-detail"
   | "training"
-  | "pipelines";
+  | "pipelines"
+  | "models";
 type UserRole = "enduser" | "datascientist" | null;
 
 export default function App() {
@@ -71,7 +73,9 @@ export default function App() {
     datascientist: [
       { key: "training" as PageType, label: "Training" },
       { key: "pipelines" as PageType, label: "Pipelines" },
+      { key: "models" as PageType, label: "Models" },
       { key: "home" as PageType, label: "Home" },
+      { key: "stock-detail" as PageType, label: "Stock Detail" },
     ],
   };
 
@@ -146,6 +150,7 @@ export default function App() {
         )}
         {activePage === "training" && <TrainingPage />}
         {activePage === "pipelines" && <PipelinesPage />}
+        {activePage === "models" && <ModelsPage />}
       </div>
     </div>
   );
