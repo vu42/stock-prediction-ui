@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -10,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export function LoginPage() {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,8 +31,15 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login({ username, password });
-      // Navigation will be handled by App.tsx checking isAuthenticated
+      const response = await login({ username, password });
+      // Navigate based on user role
+      if (response?.user?.role === 'end_user') {
+        navigate('/home');
+      } else if (response?.user?.role === 'data_scientist') {
+        navigate('/training');
+      } else {
+        navigate('/home');
+      }
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
