@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Input } from "../../ui/input";
+import { Skeleton } from "../../ui/skeleton";
 import {
   Table,
   TableBody,
@@ -12,174 +13,84 @@ import {
   TableRow,
 } from "../../ui/table";
 import {
-  Calendar,
   CheckCircle2,
   XCircle,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../../ui/tooltip";
+  listDAGRuns,
+  type DAGRunResponse,
+  PipelinesApiError,
+} from "../../../api/pipelinesApi";
 
 interface RunHistoryTabProps {
   dagId: string;
   onNavigateToRunDetails?: (runId: string) => void;
+  refreshTrigger?: number;
 }
 
-type RunState = "Running" | "Success" | "Failed" | "Queued";
+type RunState = "running" | "success" | "failed" | "queued";
 
-interface Run {
-  runId: string;
-  start: string;
-  end: string;
-  duration: string;
-  triggeredBy: string;
-  state: RunState;
-}
-
-// Generate 28 mock runs for pagination
-const generateMockRuns = (): Run[] => {
-  const states: RunState[] = [
-    "Success",
-    "Failed",
-    "Running",
-    "Queued",
-  ];
-  const runs: Run[] = [];
-
-  // Current running
-  runs.push({
-    runId: "manual__2025-11-09T14:32",
-    start: "2025-11-09 14:32:15",
-    end: "—",
-    duration: "—",
-    triggeredBy: "user@data-eng",
-    state: "Running",
-  });
-
-  // Recent successful runs
-  for (let i = 8; i >= 1; i--) {
-    const day = i.toString().padStart(2, "0");
-    const date = `2025-11-${day}`;
-    runs.push({
-      runId: `scheduled__${date}T17:00`,
-      start: `${date} 17:00:0${Math.floor(Math.random() * 9) + 1}`,
-      end: `${date} 17:0${Math.floor(Math.random() * 4) + 2}:${Math.floor(
-        Math.random() * 60,
-      )}`,
-      duration: `${Math.floor(Math.random() * 2) + 2}m ${Math.floor(
-        Math.random() * 60,
-      )}s`,
-      triggeredBy: "scheduler",
-      state: i === 6 || i === 3 ? "Failed" : "Success",
-    });
-  }
-
-  // October runs
-  for (let i = 31; i >= 15; i--) {
-    const state =
-      i === 29 || i === 22 || i === 18
-        ? "Failed"
-        : i === 16
-          ? "Queued"
-          : "Success";
-    runs.push({
-      runId: `scheduled__2025-10-${i}T17:00`,
-      start: `2025-10-${i} 17:00:0${Math.floor(Math.random() * 9) + 1}`,
-      end:
-        state === "Queued"
-          ? "—"
-          : `2025-10-${i} 17:0${Math.floor(Math.random() * 4) + 2}:${Math.floor(
-              Math.random() * 60,
-            )}`,
-      duration:
-        state === "Queued"
-          ? "—"
-          : `${Math.floor(Math.random() * 3) + 2}m ${Math.floor(
-              Math.random() * 60,
-            )}s`,
-      triggeredBy: "scheduler",
-      state: state,
-    });
-  }
-
-  return runs;
-};
-
-// Custom DateInput component with calendar icon as end-adornment
+// Custom DateInput component using text input with date format
 function DateInput({
   label,
   value,
   onChange,
-  min,
-  max,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  min?: string;
-  max?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleIconClick = () => {
-    inputRef.current?.showPicker?.();
-  };
-
-  const handleIconKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      inputRef.current?.showPicker?.();
+  const [inputValue, setInputValue] = useState(value);
+  const [error, setError] = useState("");
+  
+  // Sync with external value
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    setError("");
+    
+    // Validate and propagate if valid date format YYYY-MM-DD
+    if (newValue === "") {
+      onChange("");
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(newValue)) {
+      const date = new Date(newValue);
+      if (!isNaN(date.getTime())) {
+        onChange(newValue);
+      } else {
+        setError("Invalid date");
+      }
     }
   };
-
+  
+  const handleBlur = () => {
+    // On blur, if invalid format, show error
+    if (inputValue && !/^\d{4}-\d{2}-\d{2}$/.test(inputValue)) {
+      setError("Format: YYYY-MM-DD");
+    }
+  };
+  
   return (
-    <div>
+    <div className="min-w-[140px]">
       <label className="text-sm text-gray-600 mb-1.5 block">
         {label}
       </label>
-      <div className="relative">
-        <style>{`
-          input[type="date"]::-webkit-calendar-picker-indicator {
-            display: none;
-            -webkit-appearance: none;
-          }
-        `}</style>
-        <input
-          ref={inputRef}
-          type="date"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          min={min}
-          max={max}
-          className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-input-background transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive pr-10"
-          style={{
-            colorScheme: "light",
-          }}
-        />
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={handleIconClick}
-                onKeyDown={handleIconKeyDown}
-                aria-label="Open calendar"
-                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer text-[#6B7280] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded transition-colors"
-                tabIndex={0}
-              >
-                <Calendar className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Open calendar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="YYYY-MM-DD"
+        className={`flex h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+          error ? "border-red-500" : "border-input"
+        }`}
+      />
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -187,14 +98,14 @@ function DateInput({
 export function RunHistoryTab({
   dagId,
   onNavigateToRunDetails,
+  refreshTrigger,
 }: RunHistoryTabProps) {
-  const [allRuns] = useState<Run[]>(generateMockRuns());
-  const [filteredRuns, setFilteredRuns] =
-    useState<Run[]>(allRuns);
+  const [runs, setRuns] = useState<DAGRunResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStates, setSelectedStates] = useState<
-    Set<RunState>
-  >(new Set());
+  const [totalRuns, setTotalRuns] = useState(0);
+  const [selectedStates, setSelectedStates] = useState<Set<RunState>>(new Set());
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,48 +122,66 @@ export function RunHistoryTab({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Apply filters
+  // Fetch runs from API
+  const fetchRuns = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Build state filter - send comma-separated states
+      const stateFilter = selectedStates.size > 0
+        ? Array.from(selectedStates).join(',')
+        : undefined;
+      
+      const response = await listDAGRuns(dagId, {
+        source: 'airflow',
+        state: stateFilter,
+        from: dateFrom || undefined,
+        to: dateTo || undefined,
+        searchRunId: debouncedSearch || undefined,
+        page: currentPage,
+        pageSize,
+      });
+      
+      setRuns(response.data);
+      setTotalRuns(response.meta.total);
+    } catch (err) {
+      if (err instanceof PipelinesApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to load runs');
+      }
+      console.error('Failed to fetch runs:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dagId, currentPage, selectedStates, dateFrom, dateTo, debouncedSearch]);
+
   useEffect(() => {
-    let filtered = [...allRuns];
+    fetchRuns();
+  }, [fetchRuns]);
 
-    // State filter
-    if (selectedStates.size > 0) {
-      filtered = filtered.filter((run) =>
-        selectedStates.has(run.state),
-      );
+  // Refresh when parent triggers
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchRuns();
     }
+  }, [refreshTrigger]);
 
-    // Date range filter
-    if (dateFrom) {
-      filtered = filtered.filter((run) => {
-        const runDate = run.start.split(" ")[0];
-        return runDate >= dateFrom;
-      });
+  // Auto-refresh when there are running/queued jobs
+  useEffect(() => {
+    const hasRunningJobs = runs.some(run => 
+      ['running', 'queued'].includes(run.state.toLowerCase())
+    );
+    
+    if (hasRunningJobs) {
+      const interval = setInterval(() => {
+        fetchRuns();
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
-    if (dateTo) {
-      filtered = filtered.filter((run) => {
-        const runDate = run.start.split(" ")[0];
-        return runDate <= dateTo;
-      });
-    }
-
-    // Search filter
-    if (debouncedSearch) {
-      filtered = filtered.filter((run) =>
-        run.runId
-          .toLowerCase()
-          .includes(debouncedSearch.toLowerCase()),
-      );
-    }
-    setFilteredRuns(filtered);
-    setCurrentPage(1);
-  }, [
-    selectedStates,
-    dateFrom,
-    dateTo,
-    debouncedSearch,
-    allRuns,
-  ]);
+  }, [runs, fetchRuns]);
 
   const toggleState = (state: RunState) => {
     const newStates = new Set(selectedStates);
@@ -262,6 +191,7 @@ export function RunHistoryTab({
       newStates.add(state);
     }
     setSelectedStates(newStates);
+    setCurrentPage(1);
   };
 
   const resetFilters = () => {
@@ -273,13 +203,9 @@ export function RunHistoryTab({
   };
 
   // Pagination
-  const totalPages = Math.ceil(filteredRuns.length / pageSize);
+  const totalPages = Math.ceil(totalRuns / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(
-    startIndex + pageSize,
-    filteredRuns.length,
-  );
-  const currentRuns = filteredRuns.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + pageSize, totalRuns);
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
@@ -297,50 +223,93 @@ export function RunHistoryTab({
     onNavigateToRunDetails?.(runId);
   };
 
-  const handleRunIdClick = (
-    e: React.MouseEvent,
-    runId: string,
-  ) => {
-    e.stopPropagation();
-    onNavigateToRunDetails?.(runId);
+  const formatDuration = (seconds: number | null) => {
+    if (seconds === null || seconds === undefined) return "—";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
   };
 
-  const getStateBadgeClass = (state: RunState) => {
-    switch (state) {
-      case "Success":
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString();
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getStateBadgeClass = (state: string) => {
+    switch (state.toLowerCase()) {
+      case "success":
         return "bg-green-100 text-green-700 border-green-200";
-      case "Failed":
+      case "failed":
         return "bg-red-100 text-red-700 border-red-200";
-      case "Running":
+      case "running":
         return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Queued":
+      case "queued":
         return "bg-gray-100 text-gray-700 border-gray-200";
       default:
         return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
-  const getStateIcon = (state: RunState) => {
-    switch (state) {
-      case "Success":
+  const getStateIcon = (state: string) => {
+    switch (state.toLowerCase()) {
+      case "success":
         return <CheckCircle2 className="w-3 h-3 mr-1" />;
-      case "Failed":
+      case "failed":
         return <XCircle className="w-3 h-3 mr-1" />;
-      case "Running":
-        return (
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-        );
+      case "running":
+        return <Loader2 className="w-3 h-3 mr-1 animate-spin" />;
       default:
         return null;
     }
   };
 
   const stateOptions: RunState[] = [
-    "Running",
-    "Success",
-    "Failed",
-    "Queued",
+    "running",
+    "success",
+    "failed",
+    "queued",
   ];
+
+  const stateDisplayNames: Record<RunState, string> = {
+    running: "Running",
+    success: "Success",
+    failed: "Failed",
+    queued: "Queued",
+  };
+
+  // Loading state
+  if (isLoading && runs.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-4">
+          <Skeleton className="h-32 w-full" />
+        </Card>
+        <Card className="p-4">
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-6 text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={fetchRuns} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -368,25 +337,29 @@ export function RunHistoryTab({
                   }`}
                   onClick={() => toggleState(state)}
                 >
-                  {state}
+                  {stateDisplayNames[state]}
                 </Badge>
               ))}
             </div>
           </div>
 
           {/* Date range and search */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <DateInput
               label="From"
               value={dateFrom}
-              onChange={setDateFrom}
-              max={dateTo || undefined}
+              onChange={(value) => {
+                setDateFrom(value);
+                setCurrentPage(1);
+              }}
             />
             <DateInput
               label="To"
               value={dateTo}
-              onChange={setDateTo}
-              min={dateFrom || undefined}
+              onChange={(value) => {
+                setDateTo(value);
+                setCurrentPage(1);
+              }}
             />
             <div>
               <label className="text-sm text-gray-600 mb-1.5 block">
@@ -401,8 +374,21 @@ export function RunHistoryTab({
             </div>
           </div>
 
-          {/* Reset button */}
-          <div className="flex justify-end">
+          {/* Reset button and refresh */}
+          <div className="flex justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchRuns}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Refresh
+            </Button>
             <button
               onClick={resetFilters}
               className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer underline"
@@ -428,35 +414,34 @@ export function RunHistoryTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentRuns.length > 0 ? (
-                currentRuns.map((run, idx) => (
+              {runs.length > 0 ? (
+                runs.map((run, idx) => (
                   <TableRow
-                    key={idx}
+                    key={run.runId || idx}
                     className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleRowClick(run.runId)}
                   >
                     <TableCell className="font-mono text-xs">
                       {run.runId}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {run.start}
+                      {formatDateTime(run.start)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {run.end}
+                      {formatDateTime(run.end)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {run.duration}
+                      {formatDuration(run.durationSeconds)}
                     </TableCell>
                     <TableCell className="text-sm">
                       {run.triggeredBy}
                     </TableCell>
                     <TableCell>
                       <Badge
-                        className={getStateBadgeClass(
-                          run.state,
-                        )}
+                        className={getStateBadgeClass(run.state)}
                       >
                         {getStateIcon(run.state)}
-                        {run.state}
+                        {run.state.charAt(0).toUpperCase() + run.state.slice(1)}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -479,15 +464,15 @@ export function RunHistoryTab({
         <div className="flex items-center justify-between mt-4 pt-4 border-t">
           <p className="text-sm text-gray-600">
             Showing{" "}
-            {filteredRuns.length > 0 ? startIndex + 1 : 0}–
-            {endIndex} of {filteredRuns.length} runs
+            {totalRuns > 0 ? startIndex + 1 : 0}–
+            {endIndex} of {totalRuns} runs
           </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={goToPreviousPage}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || isLoading}
               className="cursor-pointer"
             >
               Previous
@@ -498,7 +483,8 @@ export function RunHistoryTab({
               onClick={goToNextPage}
               disabled={
                 currentPage >= totalPages ||
-                filteredRuns.length === 0
+                totalRuns === 0 ||
+                isLoading
               }
               className="cursor-pointer"
             >

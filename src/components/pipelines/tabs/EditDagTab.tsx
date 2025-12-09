@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "../../ui/select";
 import { Badge } from "../../ui/badge";
+import { Skeleton } from "../../ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../ui/alert-dialog";
-import { AlertCircle, X, Check } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { AlertCircle, X, Check, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  getDAG,
+  updateDAGSettings,
+  type DAGDetailResponse,
+  PipelinesApiError,
+} from "../../../api/pipelinesApi";
 
 interface EditDagTabProps {
   dagId: string;
@@ -34,29 +41,35 @@ interface Tag {
   enabled: boolean;
 }
 
-const initialTagsByDag: Record<string, Tag[]> = {
-  vn30_data_crawler: [
-    { name: "ingestion", enabled: true },
-    { name: "vn30", enabled: true },
-  ],
-  vn30_model_training: [
-    { name: "ml", enabled: true },
-    { name: "vn30", enabled: true },
-  ],
-};
-
 export function EditDagTab({ dagId }: EditDagTabProps) {
-  const [tags, setTags] = useState<Tag[]>(
-    initialTagsByDag[dagId] || [],
-  );
-  const [savedTags, setSavedTags] = useState<Tag[]>(
-    initialTagsByDag[dagId] || [],
-  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [dagData, setDagData] = useState<DAGDetailResponse | null>(null);
+  
+  // Form state
+  const [schedule, setSchedule] = useState("0 17 * * *");
+  const [timezone, setTimezone] = useState("Asia/Ho_Chi_Minh");
+  const [catchupOff, setCatchupOff] = useState(true);
+  const [maxActiveRuns, setMaxActiveRuns] = useState(1);
+  const [retries, setRetries] = useState(2);
+  const [retryDelay, setRetryDelay] = useState(5);
+  const [owner, setOwner] = useState("data-eng");
+  const [tags, setTags] = useState<Tag[]>([]);
+  
+  // Original values for discard
+  const [originalValues, setOriginalValues] = useState({
+    schedule: "0 17 * * *",
+    timezone: "Asia/Ho_Chi_Minh",
+    catchupOff: true,
+    maxActiveRuns: 1,
+    retries: 2,
+    retryDelay: 5,
+    owner: "data-eng",
+    tags: [] as Tag[],
+  });
+  
   const [newTagInput, setNewTagInput] = useState("");
   const [tagError, setTagError] = useState("");
-  const [schedule, setSchedule] = useState("0 17 * * *");
-  const [savedSchedule, setSavedSchedule] =
-    useState("0 17 * * *");
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     action: "save" | "discard" | null;
@@ -64,6 +77,51 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
     open: false,
     action: null,
   });
+
+  // Fetch DAG details
+  const fetchDagData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await getDAG(dagId, 'airflow');
+      setDagData(data);
+      
+      // Populate form with fetched data
+      const newSchedule = data.scheduleCron || "0 17 * * *";
+      const newTimezone = data.timezone || "Asia/Ho_Chi_Minh";
+      const newCatchupOff = !data.catchup;
+      const newMaxActiveRuns = data.maxActiveRuns || 1;
+      const newOwner = data.owner || "data-eng";
+      const newTags = (data.tags || []).map(t => ({ name: t, enabled: true }));
+      
+      setSchedule(newSchedule);
+      setTimezone(newTimezone);
+      setCatchupOff(newCatchupOff);
+      setMaxActiveRuns(newMaxActiveRuns);
+      setOwner(newOwner);
+      setTags(newTags);
+      
+      // Store original values for discard
+      setOriginalValues({
+        schedule: newSchedule,
+        timezone: newTimezone,
+        catchupOff: newCatchupOff,
+        maxActiveRuns: newMaxActiveRuns,
+        retries: 2,
+        retryDelay: 5,
+        owner: newOwner,
+        tags: newTags,
+      });
+    } catch (err) {
+      console.error('Failed to fetch DAG data:', err);
+      toast.error('Failed to load DAG settings');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dagId]);
+
+  useEffect(() => {
+    fetchDagData();
+  }, [fetchDagData]);
 
   const toggleTag = (tagName: string) => {
     setTags(
@@ -124,18 +182,58 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
     });
   };
 
-  const executeSave = () => {
-    setSavedTags([...tags]);
-    setSavedSchedule(schedule);
-    toast.success("DAG settings saved.");
+  const executeSave = async () => {
     setConfirmDialog({ open: false, action: null });
+    
+    try {
+      setIsSaving(true);
+      
+      await updateDAGSettings(dagId, {
+        scheduleCron: schedule,
+        timezone: timezone,
+        catchup: !catchupOff,
+        maxActiveRuns: maxActiveRuns,
+        tags: tags.filter(t => t.enabled).map(t => t.name),
+      });
+      
+      // Update original values after successful save
+      setOriginalValues({
+        schedule,
+        timezone,
+        catchupOff,
+        maxActiveRuns,
+        retries,
+        retryDelay,
+        owner,
+        tags: [...tags],
+      });
+      
+      toast.success("DAG settings saved successfully.");
+    } catch (err) {
+      if (err instanceof PipelinesApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Failed to save DAG settings.");
+      }
+      console.error('Failed to save DAG settings:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const executeDiscard = () => {
-    setTags([...savedTags]);
-    setSchedule(savedSchedule);
+    // Reset to original values
+    setSchedule(originalValues.schedule);
+    setTimezone(originalValues.timezone);
+    setCatchupOff(originalValues.catchupOff);
+    setMaxActiveRuns(originalValues.maxActiveRuns);
+    setRetries(originalValues.retries);
+    setRetryDelay(originalValues.retryDelay);
+    setOwner(originalValues.owner);
+    setTags([...originalValues.tags]);
     setNewTagInput("");
     setTagError("");
+    
     toast.success("Changes discarded.");
     setConfirmDialog({ open: false, action: null });
   };
@@ -147,6 +245,33 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
       executeDiscard();
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-4">
+          <Skeleton className="h-6 w-32 mb-4" />
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <Skeleton className="h-6 w-40 mb-4" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -176,16 +301,16 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
             <Label htmlFor="timezone" className="mb-1.5 block">
               Timezone
             </Label>
-            <Select defaultValue="asia-hcm">
+            <Select value={timezone} onValueChange={setTimezone}>
               <SelectTrigger id="timezone">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="asia-hcm">
+                <SelectItem value="Asia/Ho_Chi_Minh">
                   Asia/Ho_Chi_Minh
                 </SelectItem>
-                <SelectItem value="utc">UTC</SelectItem>
-                <SelectItem value="asia-singapore">
+                <SelectItem value="UTC">UTC</SelectItem>
+                <SelectItem value="Asia/Singapore">
                   Asia/Singapore
                 </SelectItem>
               </SelectContent>
@@ -194,7 +319,11 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
 
           {/* Catchup */}
           <div className="flex items-center space-x-2">
-            <Checkbox id="catchup" defaultChecked />
+            <Checkbox 
+              id="catchup" 
+              checked={catchupOff}
+              onCheckedChange={(checked) => setCatchupOff(checked === true)}
+            />
             <label
               htmlFor="catchup"
               className="text-sm cursor-pointer"
@@ -211,7 +340,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
             <Input
               id="max-runs"
               type="number"
-              defaultValue="1"
+              value={maxActiveRuns}
+              onChange={(e) => setMaxActiveRuns(parseInt(e.target.value) || 1)}
               className="w-24"
             />
           </div>
@@ -230,7 +360,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
               <Input
                 id="retries"
                 type="number"
-                defaultValue="2"
+                value={retries}
+                onChange={(e) => setRetries(parseInt(e.target.value) || 2)}
               />
             </div>
             <div>
@@ -243,7 +374,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
               <Input
                 id="retry-delay"
                 type="number"
-                defaultValue="5"
+                value={retryDelay}
+                onChange={(e) => setRetryDelay(parseInt(e.target.value) || 5)}
               />
             </div>
           </div>
@@ -255,7 +387,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
             <Input
               id="owner"
               type="text"
-              defaultValue="data-eng"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
             />
           </div>
 
@@ -314,13 +447,25 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Button onClick={handleSave} className="cursor-pointer">
-          Save changes
+        <Button 
+          onClick={handleSave} 
+          className="cursor-pointer"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save changes'
+          )}
         </Button>
         <Button
           variant="outline"
           onClick={handleDiscard}
           className="cursor-pointer"
+          disabled={isSaving}
         >
           Discard
         </Button>

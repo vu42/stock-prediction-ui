@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Skeleton } from '../ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   AlertDialog,
@@ -17,35 +18,32 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { RunHistoryTab } from './tabs/RunHistoryTab';
 import { RunDetailsTab, RunDetailsTabRef } from './tabs/RunDetailsTab';
 import { EditDagTab } from './tabs/EditDagTab';
-import { Play, Pause, StopCircle } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { Play, Pause, StopCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  getDAG,
+  triggerDAGRun,
+  pauseDAG,
+  stopDAGRun,
+  listDAGRuns,
+  type DAGDetailResponse,
+  type DAGRunResponse,
+  PipelinesApiError,
+} from '../../api/pipelinesApi';
 
 interface DagDetailsProps {
   dagId: string;
+  refreshTrigger?: number;
+  onActionComplete?: () => void;
 }
 
-const dagInfo = {
-  vn30_data_crawler: {
-    name: 'vn30_data_crawler',
-    status: 'Active',
-    owner: 'data-eng',
-    tags: ['ingestion', 'vn30'],
-    timezone: 'Asia/Ho_Chi_Minh',
-  },
-  vn30_model_training: {
-    name: 'vn30_model_training',
-    status: 'Active',
-    owner: 'data-eng',
-    tags: ['ml', 'vn30'],
-    timezone: 'Asia/Ho_Chi_Minh',
-  },
-};
-
-export function DagDetails({ dagId }: DagDetailsProps) {
+export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActionComplete }: DagDetailsProps) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isPaused, setIsPaused] = useState(false);
+  const [dag, setDag] = useState<DAGDetailResponse | null>(null);
+  const [activeRun, setActiveRun] = useState<DAGRunResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const runDetailsRef = useRef<RunDetailsTabRef>(null);
-  const dag = dagInfo[dagId as keyof typeof dagInfo];
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -59,7 +57,75 @@ export function DagDetails({ dagId }: DagDetailsProps) {
     description: '',
   });
 
-  if (!dag) return null;
+  const [childRefreshTrigger, setChildRefreshTrigger] = useState(0);
+
+  const fetchDagDetails = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) setIsLoading(true);
+      const dagData = await getDAG(dagId);
+      setDag(dagData);
+      
+      // Fetch active run (running or queued)
+      try {
+        const runsData = await listDAGRuns(dagId, { 
+          source: 'airflow',
+          pageSize: 1 
+        });
+        const latestRun = runsData.data.length > 0 ? runsData.data[0] : null;
+        // Set as active run if running or queued
+        if (latestRun && ['running', 'queued'].includes(latestRun.state)) {
+          setActiveRun(latestRun);
+        } else {
+          setActiveRun(null);
+        }
+      } catch {
+        // No active run
+        setActiveRun(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch DAG details:', err);
+      // Set a default/fallback state
+      setDag({
+        dagId,
+        name: dagId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        description: null,
+        status: 'active',
+        owner: null,
+        tags: [],
+        timezone: 'Asia/Ho_Chi_Minh',
+        scheduleCron: 'manual',
+        scheduleLabel: null,
+        catchup: false,
+        maxActiveRuns: 1,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dagId]);
+
+  useEffect(() => {
+    fetchDagDetails();
+  }, [fetchDagDetails]);
+
+  // Auto-refresh when there's an active run
+  useEffect(() => {
+    if (activeRun) {
+      const interval = setInterval(() => {
+        fetchDagDetails(false);
+        setChildRefreshTrigger(prev => prev + 1); // Trigger child refresh
+      }, 5000); // Refresh every 5 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeRun, fetchDagDetails]);
+
+  // Refresh when parent triggers (e.g., when DagCatalog performs an action)
+  useEffect(() => {
+    if (parentRefreshTrigger && parentRefreshTrigger > 0) {
+      fetchDagDetails(false);
+      setChildRefreshTrigger(prev => prev + 1);
+    }
+  }, [parentRefreshTrigger, fetchDagDetails]);
 
   const handleViewLogs = () => {
     setActiveTab('details');
@@ -78,6 +144,7 @@ export function DagDetails({ dagId }: DagDetailsProps) {
   };
 
   const handleTriggerRun = () => {
+    if (!dag) return;
     setConfirmDialog({
       open: true,
       action: 'trigger',
@@ -87,11 +154,13 @@ export function DagDetails({ dagId }: DagDetailsProps) {
   };
 
   const handlePause = () => {
+    if (!dag) return;
+    const isPaused = dag.status === 'paused';
     if (isPaused) {
       setConfirmDialog({
         open: true,
         action: 'unpause',
-        title: `Unpause — ${dag.name}?`,
+        title: `Resume — ${dag.name}?`,
         description: 'Do you want to proceed?',
       });
     } else {
@@ -105,6 +174,7 @@ export function DagDetails({ dagId }: DagDetailsProps) {
   };
 
   const handleStopRun = () => {
+    if (!dag) return;
     setConfirmDialog({
       open: true,
       action: 'stop',
@@ -113,25 +183,85 @@ export function DagDetails({ dagId }: DagDetailsProps) {
     });
   };
 
-  const executeAction = () => {
-    switch (confirmDialog.action) {
-      case 'trigger':
-        toast.success('Run triggered successfully.');
-        break;
-      case 'pause':
-        setIsPaused(true);
-        toast.success('DAG paused successfully.');
-        break;
-      case 'unpause':
-        setIsPaused(false);
-        toast.success('DAG unpaused successfully.');
-        break;
-      case 'stop':
-        toast.success('Active run stopped.');
-        break;
-    }
+  const executeAction = async () => {
+    const action = confirmDialog.action;
     setConfirmDialog({ open: false, action: null, title: '', description: '' });
+    
+    if (!dag) return;
+    
+    try {
+      setActionLoading(action);
+      
+      switch (action) {
+        case 'trigger':
+          await triggerDAGRun(dagId);
+          toast.success('Run triggered successfully');
+          break;
+        case 'pause':
+          await pauseDAG(dagId, true);
+          toast.success('DAG paused successfully');
+          break;
+        case 'unpause':
+          await pauseDAG(dagId, false);
+          toast.success('DAG resumed successfully');
+          break;
+        case 'stop':
+          if (activeRun) {
+            await stopDAGRun(dagId, activeRun.runId);
+            toast.success('Active run stopped');
+          } else {
+            toast.error('No active run to stop');
+          }
+          break;
+      }
+      
+      // Refresh DAG details and trigger child refresh
+      fetchDagDetails(false);
+      setChildRefreshTrigger(prev => prev + 1);
+      // Notify parent to refresh other components (e.g., DagCatalog)
+      onActionComplete?.();
+    } catch (err) {
+      if (err instanceof PipelinesApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error('Action failed');
+      }
+    } finally {
+      setActionLoading(null);
+    }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-36" />
+            </div>
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+        </Card>
+        <Skeleton className="h-10 w-96" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!dag) return null;
+
+  const isPaused = dag.status === 'paused';
 
   return (
     <div className="space-y-4">
@@ -148,35 +278,59 @@ export function DagDetails({ dagId }: DagDetailsProps) {
                   : 'bg-green-100 text-green-700 border-green-200'
               }
             >
-              {isPaused ? 'Paused' : dag.status}
+              {isPaused ? 'Paused' : 'Active'}
             </Badge>
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={handleTriggerRun} className="cursor-pointer">
-              <Play className="w-4 h-4 mr-2" />
-              Trigger Run
+            <Button 
+              onClick={handleTriggerRun} 
+              className={activeRun ? 'cursor-not-allowed' : 'cursor-pointer'}
+              disabled={actionLoading !== null || !!activeRun}
+            >
+              {actionLoading === 'trigger' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : activeRun ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              {activeRun ? 'Running...' : 'Trigger Run'}
             </Button>
-            <Button variant="outline" onClick={handlePause} className="cursor-pointer">
-              <Pause className="w-4 h-4 mr-2" />
-              {isPaused ? 'Unpause' : 'Pause'}
+            <Button 
+              variant="outline" 
+              onClick={handlePause} 
+              className={!activeRun ? 'cursor-not-allowed' : 'cursor-pointer'}
+              disabled={actionLoading !== null || !activeRun}
+            >
+              {(actionLoading === 'pause' || actionLoading === 'unpause') ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Pause className="w-4 h-4 mr-2" />
+              )}
+              {isPaused ? 'Resume' : 'Pause'}
             </Button>
             <Button 
               variant="outline" 
               className="text-red-600 hover:text-red-700 cursor-pointer"
               onClick={handleStopRun}
+              disabled={actionLoading !== null || !activeRun}
             >
-              <StopCircle className="w-4 h-4 mr-2" />
+              {actionLoading === 'stop' ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <StopCircle className="w-4 h-4 mr-2" />
+              )}
               Stop Active Run
             </Button>
           </div>
 
           <div className="flex gap-4 text-sm text-gray-600">
             <div>
-              <span className="text-gray-500">Owner:</span> {dag.owner}
+              <span className="text-gray-500">Owner:</span> {dag.owner || 'N/A'}
             </div>
             <div>
-              <span className="text-gray-500">Tags:</span> {dag.tags.join(', ')}
+              <span className="text-gray-500">Tags:</span> {dag.tags.length > 0 ? dag.tags.join(', ') : 'N/A'}
             </div>
             <div>
               <span className="text-gray-500">Timezone:</span> {dag.timezone}
@@ -195,15 +349,15 @@ export function DagDetails({ dagId }: DagDetailsProps) {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
-          <OverviewTab dagId={dagId} onViewLogs={handleViewLogs} />
+          <OverviewTab dagId={dagId} onViewLogs={handleViewLogs} refreshTrigger={childRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <RunHistoryTab dagId={dagId} onNavigateToRunDetails={handleNavigateToRunDetails} />
+          <RunHistoryTab dagId={dagId} onNavigateToRunDetails={handleNavigateToRunDetails} refreshTrigger={childRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="details" className="mt-4">
-          <RunDetailsTab dagId={dagId} ref={runDetailsRef} />
+          <RunDetailsTab dagId={dagId} ref={runDetailsRef} refreshTrigger={childRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="edit" className="mt-4">

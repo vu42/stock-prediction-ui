@@ -106,7 +106,7 @@ export async function validateTrainingConfig(config: TrainingConfig): Promise<Va
   const response = await fetch(`${BASE_URL}/api/v1/features/validate`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(config),
+    body: JSON.stringify({ config }),
   });
   return handleResponse<ValidateConfigResponse>(response);
 }
