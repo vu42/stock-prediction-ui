@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -31,12 +31,33 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { X, Check, RotateCcw, CheckCircle2, AlertCircle } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import type { TrainingConfig as TrainingConfigType, ValidationError, ValidationResult } from "../types/training";
+  const allTickers  = [
+    "FPT",
+    "VCB",
+    "VNM",
+    "HPG",
+    "VIC",
+    "VHM",
+    "MSN",
+    "SAB",
+]
+// Props interface for API integration
+export interface TrainingConfigProps {
+  initialConfig?: TrainingConfigType;
+  onSave?: (config: TrainingConfigType) => Promise<TrainingConfigType>;
+  onValidate?: (config: TrainingConfigType) => Promise<ValidationResult>;
+  isSaving?: boolean;
+  isValidating?: boolean;
+  validationErrors?: ValidationError[];
+  onClearValidationErrors?: () => void;
+}
 
 // Define default values for all sections
 const DEFAULTS = {
   stockUniverse: {
-    enabledTickers: new Set(["FPT", "VCB", "VNM", "HPG", "VIC", "VHM", "MSN", "SAB", "TCB", "GAS"]),
+    tickers: allTickers,
     useAllVN30: true,
   },
   dataWindow: {
@@ -54,9 +75,29 @@ const DEFAULTS = {
     rocMode: "percent",
     rocPriceSource: "close",
     rocEpsilon: "1e-8",
+    // RSI
+    rsiEnabled: true,
+    rsiWindow: 14,
+    // MACD
+    macdEnabled: true,
+    macdFast: 12,
+    macdSlow: 26,
+    macdSignal: 9,
+    // Bollinger Bands
+    bbEnabled: true,
+    bbWindow: 20,
+    bbStd: 2,
+    // ATR
+    atrEnabled: false,
+    atrWindow: 14,
+    // Volume MA
+    volumeMaEnabled: true,
+    volumeMaWindow: 20,
+    // Leakage Guard
+    leakageGuard: false,
   },
   targetSplits: {
-    horizons: new Set(["3d", "7d", "15d", "30d"]),
+    horizons: new Set(["7d", "15d", "30d"]),
     lookback: 60,
     trainSplit: 80,
     testSplit: 20,
@@ -64,6 +105,18 @@ const DEFAULTS = {
   models: {
     enabledModels: new Set(["rf", "gb", "svr", "ridge"]),
     scaling: "standard",
+    // RandomForest
+    rfnEstimators: 300,
+    rfMaxDepth: null as number | null,
+    // GradientBoosting
+    gbNEstimators: 300,
+    gbLearningRate: 0.05,
+    // SVR
+    svrC: 10.0,
+    svrEpsilon: 0.1,
+    svrGamma: "scale",
+    // Ridge
+    ridgeAlpha: 1.0,
   },
   ensemble: {
     method: "mean",
@@ -74,12 +127,26 @@ const DEFAULTS = {
   },
 };
 
-export function TrainingConfig() {
-  const allTickers = ["FPT", "VCB", "VNM", "HPG", "VIC", "VHM", "MSN", "SAB", "TCB", "GAS"];
+export function TrainingConfig({
+  initialConfig,
+  onSave,
+  onValidate,
+  isSaving: isSavingProp = false,
+  isValidating: isValidatingProp = false,
+  validationErrors = [],
+  onClearValidationErrors,
+}: TrainingConfigProps = {}) {
+
+
+  // Helper to check if a field has validation errors
+  const getFieldError = useCallback((fieldName: string): string | undefined => {
+    const error = validationErrors.find(e => e.field === fieldName);
+    return error?.message;
+  }, [validationErrors]);
 
   // State for Stock Universe
-  const [enabledTickers, setEnabledTickers] = useState<Set<string>>(
-    new Set(DEFAULTS.stockUniverse.enabledTickers)
+  const [tickers, setEnabledTickers] = useState<Set<string>>(
+    new Set(DEFAULTS.stockUniverse.tickers)
   );
   const [useAllVN30, setUseAllVN30] = useState(DEFAULTS.stockUniverse.useAllVN30);
 
@@ -100,6 +167,26 @@ export function TrainingConfig() {
   const [rocMode, setRocMode] = useState(DEFAULTS.indicators.rocMode);
   const [rocPriceSource, setRocPriceSource] = useState(DEFAULTS.indicators.rocPriceSource);
   const [rocEpsilon, setRocEpsilon] = useState(DEFAULTS.indicators.rocEpsilon);
+  // RSI
+  const [rsiEnabled, setRsiEnabled] = useState(DEFAULTS.indicators.rsiEnabled);
+  const [rsiWindow, setRsiWindow] = useState(DEFAULTS.indicators.rsiWindow);
+  // MACD
+  const [macdEnabled, setMacdEnabled] = useState(DEFAULTS.indicators.macdEnabled);
+  const [macdFast, setMacdFast] = useState(DEFAULTS.indicators.macdFast);
+  const [macdSlow, setMacdSlow] = useState(DEFAULTS.indicators.macdSlow);
+  const [macdSignal, setMacdSignal] = useState(DEFAULTS.indicators.macdSignal);
+  // Bollinger Bands
+  const [bbEnabled, setBbEnabled] = useState(DEFAULTS.indicators.bbEnabled);
+  const [bbWindow, setBbWindow] = useState(DEFAULTS.indicators.bbWindow);
+  const [bbStd, setBbStd] = useState(DEFAULTS.indicators.bbStd);
+  // ATR
+  const [atrEnabled, setAtrEnabled] = useState(DEFAULTS.indicators.atrEnabled);
+  const [atrWindow, setAtrWindow] = useState(DEFAULTS.indicators.atrWindow);
+  // Volume MA
+  const [volumeMaEnabled, setVolumeMaEnabled] = useState(DEFAULTS.indicators.volumeMaEnabled);
+  const [volumeMaWindow, setVolumeMaWindow] = useState(DEFAULTS.indicators.volumeMaWindow);
+  // Leakage Guard
+  const [leakageGuard, setLeakageGuard] = useState(DEFAULTS.indicators.leakageGuard);
 
   // State for Target & Splits
   const [selectedHorizons, setSelectedHorizons] = useState<Set<string>>(
@@ -115,6 +202,15 @@ export function TrainingConfig() {
   );
   const [scaling, setScaling] = useState(DEFAULTS.models.scaling);
   const [showModelTooltip, setShowModelTooltip] = useState<string | null>(null);
+  // Model hyperparameters
+  const [rfnEstimators, setRfnEstimators] = useState(DEFAULTS.models.rfnEstimators);
+  const [rfMaxDepth, setRfMaxDepth] = useState<number | null>(DEFAULTS.models.rfMaxDepth);
+  const [gbNEstimators, setGbNEstimators] = useState(DEFAULTS.models.gbNEstimators);
+  const [gbLearningRate, setGbLearningRate] = useState(DEFAULTS.models.gbLearningRate);
+  const [svrC, setSvrC] = useState(DEFAULTS.models.svrC);
+  const [svrEpsilon, setSvrEpsilon] = useState(DEFAULTS.models.svrEpsilon);
+  const [svrGamma, setSvrGamma] = useState(DEFAULTS.models.svrGamma);
+  const [ridgeAlpha, setRidgeAlpha] = useState(DEFAULTS.models.ridgeAlpha);
 
   // State for Ensemble
   const [ensembleMethod, setEnsembleMethod] = useState(DEFAULTS.ensemble.method);
@@ -122,6 +218,8 @@ export function TrainingConfig() {
     DEFAULTS.ensemble.learnWeightsFromCV
   );
 
+  // State for Reproducibility
+  const [randomSeed, setRandomSeed] = useState(DEFAULTS.reproducibility.randomSeed);
   // Saved state (for dirty tracking)
   const [savedState, setSavedState] = useState<any>(null);
 
@@ -144,6 +242,108 @@ export function TrainingConfig() {
   const [isValidating, setIsValidating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sync state from initialConfig when it changes (API data loaded)
+  useEffect(() => {
+    if (initialConfig) {
+      // Stock Universe
+      if (initialConfig.universe) {
+        setEnabledTickers(new Set(initialConfig.universe.tickers || []));
+        setUseAllVN30(initialConfig.universe.useAllVn30 ?? false);
+      }
+
+      // Data Window
+      if (initialConfig.dataWindow) {
+        setWindowType(initialConfig.dataWindow.windowType || 'n-days');
+        setNDays(initialConfig.dataWindow.nDays ?? 240);
+        setSkipRefetch(initialConfig.dataWindow.skipRefetch ?? false);
+      }
+
+      // Indicators (flat structure from API)
+      if (initialConfig.indicators) {
+        const ind = initialConfig.indicators;
+        // SMA
+        setSmaEnabled((ind.smaWindows?.length ?? 0) > 0);
+        setSmaWindows(ind.smaWindows || [5, 20, 60]);
+        // EMA
+        setEmaEnabled(true); // Assume enabled if values exist
+        setEmaPair({ fast: ind.emaFast ?? 12, slow: ind.emaSlow ?? 26 });
+        // ROC
+        setRocEnabled(ind.useRoc ?? false);
+        // RSI
+        setRsiWindow(ind.rsiWindow ?? 14);
+        // MACD
+        setMacdFast(ind.macdFast ?? 12);
+        setMacdSlow(ind.macdSlow ?? 26);
+        setMacdSignal(ind.macdSignal ?? 9);
+        // Bollinger Bands
+        setBbWindow(ind.bbWindow ?? 20);
+        setBbStd(ind.bbStd ?? 2);
+        // ATR
+        setAtrWindow(ind.atrWindow ?? 14);
+        // Volume MA
+        setVolumeMaWindow(ind.volumeMaWindow ?? 20);
+        // Leakage Guard
+        setLeakageGuard(ind.leakageGuard ?? false);
+      }
+
+      // Targets
+      if (initialConfig.targets) {
+        const t = initialConfig.targets;
+        // Convert number horizons to string format like "3d"
+        const horizonStrings = (t.horizons || [3, 7, 15, 30]).map((h: number) => `${h}d`);
+        setSelectedHorizons(new Set(horizonStrings));
+        setLookback(t.lookbackWindow ?? 60);
+        setTrainSplit(t.trainPct ?? 80);
+        setTestSplit(t.testPct ?? 20);
+      }
+
+      // Models
+      if (initialConfig.models) {
+        const m = initialConfig.models;
+        const enabled = new Set<string>();
+        if (m.randomForest?.enabled) enabled.add('rf');
+        if (m.gradientBoosting?.enabled) enabled.add('gb');
+        if (m.svr?.enabled) enabled.add('svr');
+        if (m.ridge?.enabled) enabled.add('ridge');
+        setEnabledModels(enabled);
+        
+        // Model hyperparameters
+        if (m.randomForest) {
+          setRfnEstimators(m.randomForest.nEstimators ?? 300);
+          setRfMaxDepth(m.randomForest.maxDepth ?? null);
+        }
+        if (m.gradientBoosting) {
+          setGbNEstimators(m.gradientBoosting.nEstimators ?? 300);
+          setGbLearningRate(m.gradientBoosting.learningRate ?? 0.05);
+        }
+        if (m.svr) {
+          setSvrC(m.svr.c ?? 10.0);
+          setSvrEpsilon(m.svr.epsilon ?? 0.1);
+          setSvrGamma(m.svr.gamma ?? 'scale');
+        }
+        if (m.ridge) {
+          setRidgeAlpha(m.ridge.alpha ?? 1.0);
+        }
+      }
+
+      // Scaling
+      if (initialConfig.scaling) {
+        setScaling(initialConfig.scaling.method || 'standard');
+      }
+
+      // Ensemble
+      if (initialConfig.ensemble) {
+        setEnsembleMethod(initialConfig.ensemble.method || 'mean');
+        setLearnWeightsFromCV(initialConfig.ensemble.learnWeights ?? false);
+      }
+
+      // Reproducibility
+      if (initialConfig.reproducibility) {
+        setRandomSeed(initialConfig.reproducibility.randomSeed ?? 42);
+      }
+    }
+  }, [initialConfig]);
+
   // Initialize saved state
   useEffect(() => {
     setSavedState(getCurrentState());
@@ -151,7 +351,7 @@ export function TrainingConfig() {
 
   // Get current state
   const getCurrentState = () => ({
-    stockUniverse: { enabledTickers: new Set(enabledTickers), useAllVN30 },
+    stockUniverse: { tickers: new Set(tickers), useAllVN30 },
     dataWindow: { windowType, nDays, skipRefetch },
     indicators: {
       smaEnabled,
@@ -163,6 +363,20 @@ export function TrainingConfig() {
       rocMode,
       rocPriceSource,
       rocEpsilon,
+      rsiEnabled,
+      rsiWindow,
+      macdEnabled,
+      macdFast,
+      macdSlow,
+      macdSignal,
+      bbEnabled,
+      bbWindow,
+      bbStd,
+      atrEnabled,
+      atrWindow,
+      volumeMaEnabled,
+      volumeMaWindow,
+      leakageGuard,
     },
     targetSplits: {
       horizons: new Set(selectedHorizons),
@@ -182,8 +396,8 @@ export function TrainingConfig() {
     const current = getCurrentState();
     const flags = {
       stockUniverse:
-        JSON.stringify([...current.stockUniverse.enabledTickers].sort()) !==
-          JSON.stringify([...savedState.stockUniverse.enabledTickers].sort()) ||
+        JSON.stringify([...current.stockUniverse.tickers].sort()) !==
+          JSON.stringify([...savedState.stockUniverse.tickers].sort()) ||
         current.stockUniverse.useAllVN30 !== savedState.stockUniverse.useAllVN30,
       dataWindow:
         current.dataWindow.windowType !== savedState.dataWindow.windowType ||
@@ -219,7 +433,7 @@ export function TrainingConfig() {
 
     setDirtyFlags(flags);
   }, [
-    enabledTickers,
+    tickers,
     useAllVN30,
     windowType,
     nDays,
@@ -233,6 +447,20 @@ export function TrainingConfig() {
     rocMode,
     rocPriceSource,
     rocEpsilon,
+    rsiEnabled,
+    rsiWindow,
+    macdEnabled,
+    macdFast,
+    macdSlow,
+    macdSignal,
+    bbEnabled,
+    bbWindow,
+    bbStd,
+    atrEnabled,
+    atrWindow,
+    volumeMaEnabled,
+    volumeMaWindow,
+    leakageGuard,
     selectedHorizons,
     lookback,
     trainSplit,
@@ -246,14 +474,139 @@ export function TrainingConfig() {
 
   const isGlobalDirty = Object.values(dirtyFlags).some((flag) => flag);
 
+  // Build API-compatible config from local state
+  const buildApiConfig = useCallback((): TrainingConfigType => {
+    // Convert horizon strings like "3d" to numbers like 3
+    const horizonsArray: string[] = [...selectedHorizons];
+    const horizonNumbers = horizonsArray.map((h) => {
+      const match = h.match(/^(\d+)d?$/);
+      return match ? parseInt(match[1], 10) : 7;
+    });
+
+    return {
+      universe: {
+        tickers: Array.from(tickers),
+        useAllVn30: useAllVN30,
+      },
+      dataWindow: {
+        windowType: windowType as 'n-days' | 'date-range',
+        nDays,
+        startDate: null,
+        endDate: null,
+        skipRefetch,
+      },
+      indicators: {
+        smaWindows: smaEnabled ? smaWindows : [],
+        emaFast: emaEnabled ? emaPair.fast : 12,
+        emaSlow: emaEnabled ? emaPair.slow : 26,
+        useRoc: rocEnabled,
+        rsiWindow,
+        macdFast,
+        macdSlow,
+        macdSignal,
+        bbWindow,
+        bbStd,
+        atrWindow,
+        volumeMaWindow,
+        leakageGuard,
+      },
+      targets: {
+        horizons: horizonNumbers,
+        lookbackWindow: lookback,
+        trainPct: trainSplit,
+        testPct: testSplit,
+      },
+      models: {
+        randomForest: {
+          enabled: enabledModels.has('rf'),
+          nEstimators: rfnEstimators,
+          maxDepth: rfMaxDepth,
+        },
+        gradientBoosting: {
+          enabled: enabledModels.has('gb'),
+          nEstimators: gbNEstimators,
+          learningRate: gbLearningRate,
+        },
+        svr: {
+          enabled: enabledModels.has('svr'),
+          c: svrC,
+          epsilon: svrEpsilon,
+          gamma: svrGamma,
+        },
+        ridge: {
+          enabled: enabledModels.has('ridge'),
+          alpha: ridgeAlpha,
+        },
+      },
+      scaling: {
+        method: scaling as 'standard' | 'none',
+      },
+      ensemble: {
+        method: ensembleMethod as 'mean' | 'median' | 'weighted',
+        learnWeights: learnWeightsFromCV,
+      },
+      reproducibility: {
+        randomSeed: randomSeed,
+      },
+    };
+  }, [
+    tickers, useAllVN30, windowType, nDays, skipRefetch,
+    smaEnabled, smaWindows, emaEnabled, emaPair, rocEnabled,
+    rsiWindow, macdFast, macdSlow, macdSignal,
+    bbWindow, bbStd, atrWindow, volumeMaWindow, leakageGuard,
+    selectedHorizons, lookback, trainSplit, testSplit,
+    enabledModels, scaling, ensembleMethod, learnWeightsFromCV,
+    rfnEstimators, rfMaxDepth, gbNEstimators, gbLearningRate,
+    svrC, svrEpsilon, svrGamma, ridgeAlpha, randomSeed
+  ]);
+
   // Handle Save
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate save operation
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setSavedState(getCurrentState());
-    setIsSaving(false);
-    toast.success("Changes saved.");
+    if (onSave) {
+      try {
+        const configToSave = buildApiConfig();
+        console.log(JSON.stringify(configToSave));
+        await onSave(configToSave);
+        setSavedState(getCurrentState());
+        onClearValidationErrors?.();
+      } catch (error) {
+        // Error handling is done in the parent via toast
+        console.error('Save failed:', error);
+      }
+    } else {
+      // Fallback for standalone usage (no API)
+      setIsSaving(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setSavedState(getCurrentState());
+      setIsSaving(false);
+      toast.success("Changes saved.");
+    }
+  };
+
+  // Handle Validate
+  const handleValidate = async () => {
+    if (onValidate) {
+      try {
+        const configToValidate = buildApiConfig();
+        const result = await onValidate(configToValidate);
+        if (result.valid) {
+          toast.success("Validation passed", {
+            icon: <CheckCircle2 className="w-4 h-4 text-green-600" />,
+          });
+        }
+        // Errors are handled via validationErrors prop from parent
+      } catch (error) {
+        console.error('Validation failed:', error);
+      }
+    } else {
+      // Fallback for standalone usage
+      setIsValidating(true);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsValidating(false);
+      toast.success("Validation passed", {
+        icon: <CheckCircle2 className="w-4 h-4 text-green-600" />,
+      });
+    }
   };
 
   // Handle Discard
@@ -261,7 +614,7 @@ export function TrainingConfig() {
     if (!savedState) return;
 
     // Restore all sections
-    setEnabledTickers(new Set(savedState.stockUniverse.enabledTickers));
+    setEnabledTickers(new Set(savedState.stockUniverse.tickers));
     setUseAllVN30(savedState.stockUniverse.useAllVN30);
     setWindowType(savedState.dataWindow.windowType);
     setNDays(savedState.dataWindow.nDays);
@@ -285,25 +638,15 @@ export function TrainingConfig() {
     setLearnWeightsFromCV(savedState.ensemble.learnWeightsFromCV);
 
     setShowDiscardModal(false);
+    onClearValidationErrors?.();
     toast.success("Changes discarded.");
-  };
-
-  // Handle Validate
-  const handleValidate = async () => {
-    setIsValidating(true);
-    // Simulate validation
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsValidating(false);
-    toast.success("Validation passed", {
-      icon: <CheckCircle2 className="w-4 h-4 text-green-600" />,
-    });
   };
 
   // Handle Reset Section
   const handleResetSection = (section: string) => {
     switch (section) {
       case "stockUniverse":
-        setEnabledTickers(new Set(DEFAULTS.stockUniverse.enabledTickers));
+        setEnabledTickers(new Set(DEFAULTS.stockUniverse.tickers));
         setUseAllVN30(DEFAULTS.stockUniverse.useAllVN30);
         break;
       case "dataWindow":
@@ -346,7 +689,7 @@ export function TrainingConfig() {
 
   // Toggle functions
   const toggleTicker = (ticker: string) => {
-    const newEnabled = new Set(enabledTickers);
+    const newEnabled = new Set(tickers);
     if (newEnabled.has(ticker)) {
       newEnabled.delete(ticker);
       setUseAllVN30(false);
@@ -443,7 +786,7 @@ export function TrainingConfig() {
           <div className="flex flex-wrap gap-2 mb-3">
             <TooltipProvider delayDuration={300}>
               {allTickers.map((ticker) => {
-                const isEnabled = enabledTickers.has(ticker);
+                const isEnabled = tickers.has(ticker);
                 return (
                   <Tooltip key={ticker}>
                     <TooltipTrigger asChild>
@@ -606,10 +949,10 @@ export function TrainingConfig() {
                       onCheckedChange={(checked) => setRocEnabled(!!checked)}
                     />
                     <label htmlFor="roc" className="text-sm cursor-pointer">
-                      ROC
+                      Use ROC
                     </label>
                   </div>
-                  {rocEnabled && (
+                  {/* {rocEnabled && (
                     <div className="pl-6 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-600">period</span>
@@ -652,7 +995,7 @@ export function TrainingConfig() {
                         />
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -662,24 +1005,55 @@ export function TrainingConfig() {
               <p className="mb-3 text-gray-700">Momentum</p>
               <div className="space-y-2 pl-2">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="rsi" defaultChecked />
+                  <Checkbox 
+                    id="rsi" 
+                    checked={rsiEnabled}
+                    onCheckedChange={(checked) => setRsiEnabled(!!checked)}
+                  />
                   <label htmlFor="rsi" className="text-sm cursor-pointer">
                     RSI
                   </label>
                   <span className="text-sm text-gray-500">window</span>
-                  <Input type="number" defaultValue="14" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={rsiWindow}
+                    onChange={(e) => {
+                      setRsiWindow(parseInt(e.target.value) || 14)
+                      console.log(rsiWindow);
+                    }}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox id="macd" defaultChecked />
+                  <Checkbox 
+                    id="macd" 
+                    checked={macdEnabled}
+                    onCheckedChange={(checked) => setMacdEnabled(!!checked)}
+                  />
                   <label htmlFor="macd" className="text-sm cursor-pointer">
                     MACD
                   </label>
                   <span className="text-sm text-gray-500">fast</span>
-                  <Input type="number" defaultValue="12" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={macdFast}
+                    onChange={(e) => setMacdFast(parseInt(e.target.value) || 12)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                   <span className="text-sm text-gray-500">slow</span>
-                  <Input type="number" defaultValue="26" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={macdSlow}
+                    onChange={(e) => setMacdSlow(parseInt(e.target.value) || 26)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                   <span className="text-sm text-gray-500">signal</span>
-                  <Input type="number" defaultValue="9" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={macdSignal}
+                    onChange={(e) => setMacdSignal(parseInt(e.target.value) || 9)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                 </div>
               </div>
             </div>
@@ -689,22 +1063,45 @@ export function TrainingConfig() {
               <p className="mb-3 text-gray-700">Volatility</p>
               <div className="space-y-2 pl-2">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="bb" defaultChecked />
+                  <Checkbox 
+                    id="bb" 
+                    checked={bbEnabled}
+                    onCheckedChange={(checked) => setBbEnabled(!!checked)}
+                  />
                   <label htmlFor="bb" className="text-sm cursor-pointer">
                     Bollinger Bands
                   </label>
                   <span className="text-sm text-gray-500">window</span>
-                  <Input type="number" defaultValue="20" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={bbWindow}
+                    onChange={(e) => setBbWindow(parseInt(e.target.value) || 20)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                   <span className="text-sm text-gray-500">std</span>
-                  <Input type="number" defaultValue="2" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={bbStd}
+                    onChange={(e) => setBbStd(parseInt(e.target.value) || 2)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Checkbox id="atr" />
+                  <Checkbox 
+                    id="atr" 
+                    checked={atrEnabled}
+                    onCheckedChange={(checked) => setAtrEnabled(!!checked)}
+                  />
                   <label htmlFor="atr" className="text-sm cursor-pointer">
                     ATR
                   </label>
                   <span className="text-sm text-gray-500">window</span>
-                  <Input type="number" defaultValue="14" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={atrWindow}
+                    onChange={(e) => setAtrWindow(parseInt(e.target.value) || 14)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                 </div>
               </div>
             </div>
@@ -714,12 +1111,21 @@ export function TrainingConfig() {
               <p className="mb-3 text-gray-700">Volume</p>
               <div className="pl-2">
                 <div className="flex items-center gap-2">
-                  <Checkbox id="volume-ma" defaultChecked />
+                  <Checkbox 
+                    id="volume-ma" 
+                    checked={volumeMaEnabled}
+                    onCheckedChange={(checked) => setVolumeMaEnabled(!!checked)}
+                  />
                   <label htmlFor="volume-ma" className="text-sm cursor-pointer">
                     Volume MA
                   </label>
                   <span className="text-sm text-gray-500">window</span>
-                  <Input type="number" defaultValue="20" className="w-16 h-7 px-2 text-sm" />
+                  <Input 
+                    type="number" 
+                    value={volumeMaWindow}
+                    onChange={(e) => setVolumeMaWindow(parseInt(e.target.value) || 20)}
+                    className="w-16 h-7 px-2 text-sm" 
+                  />
                 </div>
               </div>
             </div>
@@ -739,7 +1145,7 @@ export function TrainingConfig() {
           <div className="mb-4">
             <Label className="mb-2 block">Horizons</Label>
             <div className="flex gap-2">
-              {["3d", "7d", "15d", "30d"].map((horizon) => {
+              {["7d", "15d", "30d"].map((horizon) => {
                 const isSelected = selectedHorizons.has(horizon);
                 return (
                   <Badge
@@ -775,7 +1181,11 @@ export function TrainingConfig() {
                 id="train-split"
                 type="number"
                 value={trainSplit}
-                onChange={(e) => setTrainSplit(Number(e.target.value))}
+                onChange={(e) => {
+                  const newTrain = Math.min(100, Math.max(0, Number(e.target.value)));
+                  setTrainSplit(newTrain);
+                  setTestSplit(100 - newTrain);
+                }}
                 className="w-full"
               />
             </div>
@@ -787,7 +1197,11 @@ export function TrainingConfig() {
                 id="test-split"
                 type="number"
                 value={testSplit}
-                onChange={(e) => setTestSplit(Number(e.target.value))}
+                onChange={(e) => {
+                  const newTest = Math.min(100, Math.max(0, Number(e.target.value)));
+                  setTestSplit(newTest);
+                  setTrainSplit(100 - newTest);
+                }}
                 className="w-full"
               />
             </div>
@@ -822,11 +1236,20 @@ export function TrainingConfig() {
                   <span className="text-sm text-gray-600">n_estimators</span>
                   <Input
                     type="number"
-                    defaultValue="300"
+                    value={rfnEstimators}
+                    onChange={(e) => setRfnEstimators(parseInt(e.target.value) || 300)}
                     className="w-20 h-7 px-2 text-sm"
                   />
                   <span className="text-sm text-gray-600">max_depth</span>
-                  <Input type="text" defaultValue="None" className="w-20 h-7 px-2 text-sm" />
+                  <Input 
+                    type="text" 
+                    value={rfMaxDepth === null ? 'None' : rfMaxDepth}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setRfMaxDepth(val === 'None' || val === '' ? null : parseInt(val) || null);
+                    }}
+                    className="w-20 h-7 px-2 text-sm" 
+                  />
                 </div>
               </div>
 
@@ -853,13 +1276,15 @@ export function TrainingConfig() {
                   <span className="text-sm text-gray-600">n_estimators</span>
                   <Input
                     type="number"
-                    defaultValue="300"
+                    value={gbNEstimators}
+                    onChange={(e) => setGbNEstimators(parseInt(e.target.value) || 300)}
                     className="w-20 h-7 px-2 text-sm"
                   />
                   <span className="text-sm text-gray-600">learning_rate</span>
                   <Input
                     type="number"
-                    defaultValue="0.05"
+                    value={gbLearningRate}
+                    onChange={(e) => setGbLearningRate(parseFloat(e.target.value) || 0.05)}
                     step="0.01"
                     className="w-20 h-7 px-2 text-sm"
                   />
@@ -889,19 +1314,26 @@ export function TrainingConfig() {
                   <span className="text-sm text-gray-600">C</span>
                   <Input
                     type="number"
-                    defaultValue="10.0"
+                    value={svrC}
+                    onChange={(e) => setSvrC(parseFloat(e.target.value) || 10.0)}
                     step="0.1"
                     className="w-20 h-7 px-2 text-sm"
                   />
                   <span className="text-sm text-gray-600">epsilon</span>
                   <Input
                     type="number"
-                    defaultValue="0.1"
+                    value={svrEpsilon}
+                    onChange={(e) => setSvrEpsilon(parseFloat(e.target.value) || 0.1)}
                     step="0.01"
                     className="w-20 h-7 px-2 text-sm"
                   />
                   <span className="text-sm text-gray-600">gamma</span>
-                  <Input type="text" defaultValue="scale" className="w-20 h-7 px-2 text-sm" />
+                  <Input 
+                    type="text" 
+                    value={svrGamma}
+                    onChange={(e) => setSvrGamma(e.target.value || 'scale')}
+                    className="w-20 h-7 px-2 text-sm" 
+                  />
                 </div>
               </div>
 
@@ -928,7 +1360,8 @@ export function TrainingConfig() {
                   <span className="text-sm text-gray-600">alpha</span>
                   <Input
                     type="number"
-                    defaultValue="1.0"
+                    value={ridgeAlpha}
+                    onChange={(e) => setRidgeAlpha(parseFloat(e.target.value) || 1.0)}
                     step="0.1"
                     className="w-20 h-7 px-2 text-sm"
                   />
@@ -1061,7 +1494,8 @@ export function TrainingConfig() {
             <Input
               id="random-seed"
               type="number"
-              defaultValue="42"
+              value={randomSeed}
+              onChange={(e) => setRandomSeed(parseInt(e.target.value) || 42)}
               className="w-32"
             />
           </div>
@@ -1075,10 +1509,10 @@ export function TrainingConfig() {
             <Button
               variant="outline"
               onClick={handleValidate}
-              disabled={isValidating || isSaving}
+              disabled={(isValidatingProp || isValidating) || (isSavingProp || isSaving)}
               className="cursor-pointer"
             >
-              {isValidating ? (
+              {(isValidatingProp || isValidating) ? (
                 <>
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mr-2" />
                   Validating...
@@ -1093,10 +1527,10 @@ export function TrainingConfig() {
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleSave}
-                    disabled={!isGlobalDirty || isSaving}
+                    disabled={!isGlobalDirty || (isSavingProp || isSaving)}
                     className="cursor-pointer"
                   >
-                    {isSaving ? (
+                    {(isSavingProp || isSaving) ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                         Saving...

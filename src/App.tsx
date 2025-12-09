@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TrainingPage } from "./components/pages/TrainingPage";
 import { PipelinesPage } from "./components/pages/PipelinesPage";
 import { ModelsPage } from "./components/pages/ModelsPage";
@@ -6,8 +6,9 @@ import { HomePage } from "./components/pages/HomePage";
 import { StockDetailPage } from "./components/pages/StockDetailPage";
 import { LoginPage } from "./components/pages/LoginPage";
 import { Button } from "./components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 type PageType =
   | "home"
@@ -15,41 +16,25 @@ type PageType =
   | "training"
   | "pipelines"
   | "models";
-type UserRole = "enduser" | "datascientist" | null;
 
-export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>(null);
-  const [username, setUsername] = useState("");
-  const [activePage, setActivePage] =
-    useState<PageType>("home");
-  const [selectedTicker, setSelectedTicker] =
-    useState<string>("FPT");
+function AppContent() {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [activePage, setActivePage] = useState<PageType>("home");
+  const [selectedTicker, setSelectedTicker] = useState<string>("FPT");
 
-  const handleLogin = (username: string, password: string) => {
-    // Determine user role based on username
-    const role: UserRole = username.startsWith("enduser")
-      ? "enduser"
-      : username.startsWith("ds")
-        ? "datascientist"
-        : null;
-
-    setUsername(username);
-    setUserRole(role);
-    setIsAuthenticated(true);
-
-    // Set default landing page based on role
-    if (role === "enduser") {
-      setActivePage("home");
-    } else if (role === "datascientist") {
-      setActivePage("training");
+  // Set default page based on role when user logs in
+  useEffect(() => {
+    if (user) {
+      if (user.role === "end_user") {
+        setActivePage("home");
+      } else if (user.role === "data_scientist") {
+        setActivePage("training");
+      }
     }
-  };
+  }, [user]);
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUserRole(null);
-    setUsername("");
+    logout();
     setActivePage("home");
   };
 
@@ -62,15 +47,24 @@ export default function App() {
     setActivePage("home");
   };
 
+  // Show loading spinner while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
   // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (!isAuthenticated || !user) {
+    return <LoginPage />;
   }
 
   // Navigation items based on user role
   const navItems = {
-    enduser: [{ key: "home" as PageType, label: "Home" }],
-    datascientist: [
+    end_user: [{ key: "home" as PageType, label: "Home" }],
+    data_scientist: [
       { key: "training" as PageType, label: "Training" },
       { key: "pipelines" as PageType, label: "Pipelines" },
       { key: "models" as PageType, label: "Models" },
@@ -79,12 +73,12 @@ export default function App() {
     ],
   };
 
-  const currentNavItems = userRole ? navItems[userRole] : [];
+  const currentNavItems = navItems[user.role] || [];
 
   const handleLogoClick = () => {
-    if (userRole === "enduser") {
+    if (user.role === "end_user") {
       setActivePage("home");
-    } else if (userRole === "datascientist") {
+    } else if (user.role === "data_scientist") {
       setActivePage("training");
     }
   };
@@ -103,8 +97,8 @@ export default function App() {
               Stock Prediction
             </h2>
             <span className="text-sm text-gray-500">
-              {username} (
-              {userRole === "enduser"
+              {user.displayName} (
+              {user.role === "end_user"
                 ? "End User"
                 : "Data Scientist"}
               )
@@ -153,5 +147,13 @@ export default function App() {
         {activePage === "models" && <ModelsPage />}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

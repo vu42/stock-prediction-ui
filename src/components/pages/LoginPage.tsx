@@ -4,38 +4,42 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface LoginPageProps {
-  onLogin: (username: string, password: string) => void;
-}
-
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const validAccounts = [
-    'enduser1',
-    'enduser2',
-    'ds1',
-    'ds2',
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate credentials
-    if (!validAccounts.includes(username) || password !== 'pass1234') {
-      setError('Invalid username or password.');
+    if (!username || !password) {
+      setError('Please enter username and password.');
       return;
     }
 
     setError('');
-    onLogin(username, password);
+    setIsLoading(true);
+
+    try {
+      await login({ username, password });
+      // Navigation will be handled by App.tsx checking isAuthenticated
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTestAccountClick = (user: string) => {
@@ -74,6 +78,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 setError('');
               }}
               className={error ? 'border-red-500' : ''}
+              disabled={isLoading}
             />
           </div>
 
@@ -91,11 +96,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   setError('');
                 }}
                 className={error ? 'border-red-500 pr-10' : 'pr-10'}
+                disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                disabled={isLoading}
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -122,8 +129,15 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           )}
 
           {/* Sign In Button */}
-          <Button type="submit" className="w-full">
-            Sign In
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </Button>
 
           {/* Remember Me & Forgot Password */}
@@ -133,6 +147,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 id="remember"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                disabled={isLoading}
               />
               <Label htmlFor="remember" className="cursor-pointer text-sm">
                 Remember me
@@ -168,6 +183,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 type="button"
                 onClick={() => handleTestAccountClick('enduser1')}
                 className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
+                disabled={isLoading}
               >
                 <div className="text-sm">
                   <span className="text-gray-900">enduser1</span>
@@ -178,6 +194,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 type="button"
                 onClick={() => handleTestAccountClick('enduser2')}
                 className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
+                disabled={isLoading}
               >
                 <div className="text-sm">
                   <span className="text-gray-900">enduser2</span>
@@ -198,6 +215,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 type="button"
                 onClick={() => handleTestAccountClick('ds1')}
                 className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
+                disabled={isLoading}
               >
                 <div className="text-sm">
                   <span className="text-gray-900">ds1</span>
@@ -208,6 +226,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 type="button"
                 onClick={() => handleTestAccountClick('ds2')}
                 className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
+                disabled={isLoading}
               >
                 <div className="text-sm">
                   <span className="text-gray-900">ds2</span>
