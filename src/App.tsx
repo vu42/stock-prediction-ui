@@ -11,6 +11,7 @@ import { Button } from "./components/ui/button";
 import { LogOut } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Loader2 } from 'lucide-react';
 
 function Navigation() {
   const { user, logout } = useAuth();
@@ -122,7 +123,7 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 animate-spin text-gray-400">Loading...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
   }
