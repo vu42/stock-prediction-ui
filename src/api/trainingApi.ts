@@ -1,7 +1,7 @@
 // API client for training configuration endpoints
 
 import type { TrainingConfig, ValidationResult, ApiError } from '../types/training';
-import { authenticatedFetch } from './authApi';
+import { getStoredToken } from './authApi';
 
 const BASE_URL = 'http://localhost:8000';
 
@@ -33,6 +33,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
+function getAuthHeaders(): HeadersInit {
+  const token = getStoredToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 // ============================================
 // Training Configuration Endpoints
 // ============================================
@@ -43,8 +54,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Returns TrainingConfigResponse with nested config
  */
 export async function fetchTrainingConfig(): Promise<TrainingConfig> {
-  const response = await authenticatedFetch(`${BASE_URL}/api/v1/features/config`, {
+  const response = await fetch(`${BASE_URL}/api/v1/features/config`, {
     method: 'GET',
+    headers: getAuthHeaders(),
   });
   // Response is { id, name, config: {...}, version, ... }
   // We need to extract just the config
@@ -68,8 +80,9 @@ export async function saveTrainingConfig(config: TrainingConfig): Promise<SaveCo
     name: 'Training Config',
     config,
   };
-  const response = await authenticatedFetch(`${BASE_URL}/api/v1/features/config`, {
+  const response = await fetch(`${BASE_URL}/api/v1/features/config`, {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify(requestBody),
   });
   return handleResponse<SaveConfigResponse>(response);
@@ -90,9 +103,13 @@ export interface ValidateConfigResponse {
 }
 
 export async function validateTrainingConfig(config: TrainingConfig): Promise<ValidateConfigResponse> {
-  const response = await authenticatedFetch(`${BASE_URL}/api/v1/features/validate`, {
+  const requestBody = {
+    config,
+  };
+  const response = await fetch(`${BASE_URL}/api/v1/features/validate`, {
     method: 'POST',
-    body: JSON.stringify(config),
+    headers: getAuthHeaders(),
+    body: JSON.stringify(requestBody),
   });
   return handleResponse<ValidateConfigResponse>(response);
 }
@@ -117,8 +134,9 @@ export interface StartRunResponse {
 }
 
 export async function startTrainingRun(request: StartRunRequest): Promise<StartRunResponse> {
-  const response = await authenticatedFetch(`${BASE_URL}/api/v1/experiments/run`, {
+  const response = await fetch(`${BASE_URL}/api/v1/experiments/run`, {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: JSON.stringify(request),
   });
   return handleResponse<StartRunResponse>(response);
@@ -140,8 +158,9 @@ export interface RunStatus {
 }
 
 export async function getRunStatus(runId: string): Promise<RunStatus> {
-  const response = await authenticatedFetch(`${BASE_URL}/api/v1/experiments/${runId}`, {
+  const response = await fetch(`${BASE_URL}/api/v1/experiments/${runId}`, {
     method: 'GET',
+    headers: getAuthHeaders(),
   });
   return handleResponse<RunStatus>(response);
 }
@@ -166,8 +185,9 @@ export async function getRunLogs(runId: string, cursor?: string): Promise<LogsRe
   if (cursor) {
     url.searchParams.set('cursor', cursor);
   }
-  const response = await authenticatedFetch(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: 'GET',
+    headers: getAuthHeaders(),
   });
   return handleResponse<LogsResponse>(response);
 }
@@ -194,8 +214,9 @@ export async function listRuns(options?: { limit?: number; cursor?: string; stat
   if (options?.cursor) url.searchParams.set('cursor', options.cursor);
   if (options?.state) url.searchParams.set('state', options.state);
   
-  const response = await authenticatedFetch(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: 'GET',
+    headers: getAuthHeaders(),
   });
   return handleResponse<ListRunsResponse>(response);
 }
@@ -229,8 +250,9 @@ export async function getRunArtifacts(runId: string, ticker?: string): Promise<A
   if (ticker) {
     url.searchParams.set('ticker', ticker);
   }
-  const response = await authenticatedFetch(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: 'GET',
+    headers: getAuthHeaders(),
   });
   return handleResponse<ArtifactsResponse>(response);
 }
