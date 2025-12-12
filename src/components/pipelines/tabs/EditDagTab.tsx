@@ -90,6 +90,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
       const newTimezone = data.timezone || "Asia/Ho_Chi_Minh";
       const newCatchupOff = !data.catchup;
       const newMaxActiveRuns = data.maxActiveRuns || 1;
+      const newRetries = data.defaultRetries ?? 2;
+      const newRetryDelay = data.defaultRetryDelayMinutes ?? 5;
       const newOwner = data.owner || "data-eng";
       const newTags = (data.tags || []).map(t => ({ name: t, enabled: true }));
       
@@ -97,6 +99,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
       setTimezone(newTimezone);
       setCatchupOff(newCatchupOff);
       setMaxActiveRuns(newMaxActiveRuns);
+      setRetries(newRetries);
+      setRetryDelay(newRetryDelay);
       setOwner(newOwner);
       setTags(newTags);
       
@@ -106,8 +110,8 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
         timezone: newTimezone,
         catchupOff: newCatchupOff,
         maxActiveRuns: newMaxActiveRuns,
-        retries: 2,
-        retryDelay: 5,
+        retries: newRetries,
+        retryDelay: newRetryDelay,
         owner: newOwner,
         tags: newTags,
       });
@@ -193,7 +197,12 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
         timezone: timezone,
         catchup: !catchupOff,
         maxActiveRuns: maxActiveRuns,
-        tags: tags.filter(t => t.enabled).map(t => t.name),
+        defaultArgs: {
+          retries: retries,
+          retryDelayMinutes: retryDelay,
+          owner: owner,
+          tags: tags.filter(t => t.enabled).map(t => t.name),
+        },
       });
       
       // Update original values after successful save
@@ -340,8 +349,12 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
             <Input
               id="max-runs"
               type="number"
+              min={0}
               value={maxActiveRuns}
-              onChange={(e) => setMaxActiveRuns(parseInt(e.target.value) || 1)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setMaxActiveRuns(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
+              }}
               className="w-24"
             />
           </div>
@@ -360,8 +373,12 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
               <Input
                 id="retries"
                 type="number"
+                min={0}
                 value={retries}
-                onChange={(e) => setRetries(parseInt(e.target.value) || 2)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRetries(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
+                }}
               />
             </div>
             <div>
@@ -374,8 +391,12 @@ export function EditDagTab({ dagId }: EditDagTabProps) {
               <Input
                 id="retry-delay"
                 type="number"
+                min={0}
                 value={retryDelay}
-                onChange={(e) => setRetryDelay(parseInt(e.target.value) || 5)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRetryDelay(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
+                }}
               />
             </div>
           </div>

@@ -3,7 +3,7 @@ import { DagCatalog } from '../pipelines/DagCatalog';
 import { DagDetails } from '../pipelines/DagDetails';
 
 export function PipelinesPage() {
-  const [selectedDag, setSelectedDag] = useState('vn30_data_crawler');
+  const [selectedDag, setSelectedDag] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Callback to trigger refresh in both components when an action is completed

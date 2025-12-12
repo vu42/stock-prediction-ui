@@ -32,7 +32,7 @@ interface RunHistoryTabProps {
 
 type RunState = "running" | "success" | "failed" | "queued";
 
-// Custom DateInput component using text input with date format
+// Simple DateInput component with validation
 function DateInput({
   label,
   value,
@@ -45,7 +45,6 @@ function DateInput({
   const [inputValue, setInputValue] = useState(value);
   const [error, setError] = useState("");
   
-  // Sync with external value
   useEffect(() => {
     setInputValue(value);
   }, [value]);
@@ -55,7 +54,6 @@ function DateInput({
     setInputValue(newValue);
     setError("");
     
-    // Validate and propagate if valid date format YYYY-MM-DD
     if (newValue === "") {
       onChange("");
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(newValue)) {
@@ -69,7 +67,6 @@ function DateInput({
   };
   
   const handleBlur = () => {
-    // On blur, if invalid format, show error
     if (inputValue && !/^\d{4}-\d{2}-\d{2}$/.test(inputValue)) {
       setError("Format: YYYY-MM-DD");
     }
@@ -86,8 +83,8 @@ function DateInput({
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder="YYYY-MM-DD"
-        className={`flex h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
-          error ? "border-red-500" : "border-input"
+        className={`flex h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+          error ? "border-red-500" : "border-gray-300"
         }`}
       />
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}

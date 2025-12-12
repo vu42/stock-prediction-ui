@@ -32,6 +32,8 @@ export interface DAGDetailResponse {
   scheduleLabel: string | null;
   catchup: boolean;
   maxActiveRuns: number;
+  defaultRetries: number;
+  defaultRetryDelayMinutes: number;
 }
 
 export interface DAGRunResponse {

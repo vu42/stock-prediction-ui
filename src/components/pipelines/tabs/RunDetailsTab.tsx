@@ -19,6 +19,7 @@ import {
 
 interface RunDetailsTabProps {
   dagId: string;
+  selectedRunId?: string | null;
   refreshTrigger?: number;
 }
 
@@ -27,7 +28,7 @@ export interface RunDetailsTabRef {
 }
 
 export const RunDetailsTab = forwardRef<RunDetailsTabRef, RunDetailsTabProps>(
-  ({ dagId, refreshTrigger }, ref) => {
+  ({ dagId, selectedRunId, refreshTrigger }, ref) => {
     const [detailTab, setDetailTab] = useState('graph');
     const [latestRun, setLatestRun] = useState<DAGRunResponse | null>(null);
     const [graph, setGraph] = useState<GraphResponse | null>(null);
@@ -47,20 +48,32 @@ export const RunDetailsTab = forwardRef<RunDetailsTabRef, RunDetailsTabProps>(
         if (showLoading) setIsLoading(true);
         else setIsRefreshing(true);
         
-        // Get latest run
-        const runsData = await listDAGRuns(dagId, { 
-          source: 'airflow',
-          pageSize: 1 
-        });
+        let run: DAGRunResponse | null = null;
         
-        if (runsData.data.length === 0) {
+        if (selectedRunId) {
+          // Fetch specific run by searching for it
+          const runsData = await listDAGRuns(dagId, { 
+            source: 'airflow',
+            searchRunId: selectedRunId,
+            pageSize: 10 
+          });
+          run = runsData.data.find(r => r.runId === selectedRunId) || runsData.data[0] || null;
+        } else {
+          // Get latest run
+          const runsData = await listDAGRuns(dagId, { 
+            source: 'airflow',
+            pageSize: 1 
+          });
+          run = runsData.data[0] || null;
+        }
+        
+        if (!run) {
           setLatestRun(null);
           setIsLoading(false);
           setIsRefreshing(false);
           return;
         }
         
-        const run = runsData.data[0];
         setLatestRun(run);
         
         // Fetch graph, gantt, logs in parallel
@@ -83,7 +96,7 @@ export const RunDetailsTab = forwardRef<RunDetailsTabRef, RunDetailsTabProps>(
         setIsLoading(false);
         setIsRefreshing(false);
       }
-    }, [dagId]);
+    }, [dagId, selectedRunId]);
 
     useEffect(() => {
       fetchRunDetails();

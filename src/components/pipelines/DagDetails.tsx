@@ -41,6 +41,7 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
   const [activeTab, setActiveTab] = useState('overview');
   const [dag, setDag] = useState<DAGDetailResponse | null>(null);
   const [activeRun, setActiveRun] = useState<DAGRunResponse | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const runDetailsRef = useRef<RunDetailsTabRef>(null);
@@ -60,6 +61,11 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
   const [childRefreshTrigger, setChildRefreshTrigger] = useState(0);
 
   const fetchDagDetails = useCallback(async (showLoading = true) => {
+    if (!dagId) {
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       if (showLoading) setIsLoading(true);
       const dagData = await getDAG(dagId);
@@ -84,7 +90,7 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
       }
     } catch (err) {
       console.error('Failed to fetch DAG details:', err);
-      // Set a default/fallback state
+      // Set a default/fallback state (only used when API fails)
       setDag({
         dagId,
         name: dagId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -97,6 +103,8 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
         scheduleLabel: null,
         catchup: false,
         maxActiveRuns: 1,
+        defaultRetries: 0,
+        defaultRetryDelayMinutes: 5,
       });
     } finally {
       setIsLoading(false);
@@ -136,6 +144,7 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
   };
 
   const handleNavigateToRunDetails = (runId: string) => {
+    setSelectedRunId(runId);
     setActiveTab('details');
     // Small delay to ensure tab content is mounted
     setTimeout(() => {
@@ -259,6 +268,14 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
     );
   }
 
+  if (!dagId) {
+    return (
+      <Card className="p-6 text-center">
+        <p className="text-gray-500">Select a DAG from the catalog to view details.</p>
+      </Card>
+    );
+  }
+
   if (!dag) return null;
 
   const isPaused = dag.status === 'paused';
@@ -357,7 +374,7 @@ export function DagDetails({ dagId, refreshTrigger: parentRefreshTrigger, onActi
         </TabsContent>
 
         <TabsContent value="details" className="mt-4">
-          <RunDetailsTab dagId={dagId} ref={runDetailsRef} refreshTrigger={childRefreshTrigger} />
+          <RunDetailsTab dagId={dagId} selectedRunId={selectedRunId} ref={runDetailsRef} refreshTrigger={childRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="edit" className="mt-4">
