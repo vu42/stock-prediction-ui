@@ -601,22 +601,22 @@ export function HomePage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {stock.predictedPctChange["7d"]?.predictedPct !== null &&
-                        stock.predictedPctChange["7d"]?.predictedPct !== undefined ? (
+                        {stock.predictedPctChange?.["7d"]?.predictedPct !== null &&
+                        stock.predictedPctChange?.["7d"]?.predictedPct !== undefined ? (
                           <div className="flex flex-col">
                             <span
                               className={
-                                (stock.predictedPctChange["7d"]?.predictedPct ?? 0) >= 0
+                                (stock.predictedPctChange?.["7d"]?.predictedPct ?? 0) >= 0
                                   ? "text-green-700"
                                   : "text-red-700"
                               }
                             >
-                              {formatPercentage(stock.predictedPctChange["7d"].predictedPct!)}
+                              {formatPercentage(stock.predictedPctChange?.["7d"]?.predictedPct!)}
                             </span>
-                            {stock.predictedPctChange["7d"]?.predictedPrice !== null &&
-                            stock.predictedPctChange["7d"]?.predictedPrice !== undefined ? (
+                            {stock.predictedPctChange?.["7d"]?.predictedPrice !== null &&
+                            stock.predictedPctChange?.["7d"]?.predictedPrice !== undefined ? (
                               <span className="text-xs text-gray-500 mt-0.5">
-                                {formatPrice(stock.predictedPctChange["7d"].predictedPrice!)}
+                                {formatPrice(stock.predictedPctChange?.["7d"]?.predictedPrice!)}
                               </span>
                             ) : null}
                           </div>

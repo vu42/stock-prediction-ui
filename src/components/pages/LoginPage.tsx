@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -27,11 +27,11 @@ export function LoginPage() {
       return;
     }
 
-    setError('');
+    setError(''); 
     setIsLoading(true);
 
     try {
-      const response = await login({ username, password });
+      const response: any = await login({ username, password });
       // Navigate based on user role
       if (response?.user?.role === 'end_user') {
         navigate('/home');
@@ -51,24 +51,12 @@ export function LoginPage() {
     }
   };
 
-  const handleTestAccountClick = (user: string) => {
-    setUsername(user);
-    setPassword('pass1234');
-    setError('');
-  };
-
-  const detectedRole = username.startsWith('enduser')
-    ? 'End User'
-    : username.startsWith('ds')
-    ? 'Data Scientist'
-    : '—';
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
       <Card className="w-full max-w-[420px] p-6 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-gray-900">Stock Prediction</h1>
+          <h1 className="text-gray-900">Stock prediction</h1>
           <p className="text-gray-600">Sign in to continue</p>
         </div>
 
@@ -122,14 +110,6 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* Role Detection */}
-          <div className="space-y-2">
-            <Label>Detected role</Label>
-            <div className="text-sm text-gray-600 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
-              {detectedRole}
-            </div>
-          </div>
-
           {/* Error Message */}
           {error && (
             <Alert variant="destructive" className="py-2">
@@ -162,92 +142,8 @@ export function LoginPage() {
                 Remember me
               </Label>
             </div>
-            <a
-              href="#"
-              className="text-sm text-blue-600 hover:text-blue-700"
-              onClick={(e) => e.preventDefault()}
-            >
-              Forgot password?
-            </a>
           </div>
         </form>
-
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Test Accounts</span>
-          </div>
-        </div>
-
-        {/* Test Accounts */}
-        <div className="space-y-4">
-          {/* End User Accounts */}
-          <div className="space-y-2">
-            <h4 className="text-gray-900">End User</h4>
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => handleTestAccountClick('enduser1')}
-                className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
-                disabled={isLoading}
-              >
-                <div className="text-sm">
-                  <span className="text-gray-900">enduser1</span>
-                  <span className="text-gray-500"> / pass1234</span>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTestAccountClick('enduser2')}
-                className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
-                disabled={isLoading}
-              >
-                <div className="text-sm">
-                  <span className="text-gray-900">enduser2</span>
-                  <span className="text-gray-500"> / pass1234</span>
-                </div>
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              End Users can access Home and Stock Detail. Default landing: Home.
-            </p>
-          </div>
-
-          {/* Data Scientist Accounts */}
-          <div className="space-y-2">
-            <h4 className="text-gray-900">Data Scientist</h4>
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => handleTestAccountClick('ds1')}
-                className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
-                disabled={isLoading}
-              >
-                <div className="text-sm">
-                  <span className="text-gray-900">ds1</span>
-                  <span className="text-gray-500"> / pass1234</span>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTestAccountClick('ds2')}
-                className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-md border border-gray-200 transition-colors"
-                disabled={isLoading}
-              >
-                <div className="text-sm">
-                  <span className="text-gray-900">ds2</span>
-                  <span className="text-gray-500"> / pass1234</span>
-                </div>
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Data Scientists can access Training, Pipelines, Home, and Stock Detail. Default landing: Training.
-            </p>
-          </div>
-        </div>
       </Card>
     </div>
   );

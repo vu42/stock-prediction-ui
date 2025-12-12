@@ -47,14 +47,10 @@ function Navigation() {
             to={user?.role === "end_user" ? "/home" : "/training"}
             className="text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
           >
-            Stock Prediction
+            Stock prediction
           </Link>
           <span className="text-sm text-gray-500">
-            {user?.displayName} (
-            {user?.role === "end_user"
-              ? "End User"
-              : "Data Scientist"}
-            )
+            {user?.displayName}
           </span>
         </div>
         <div className="flex items-center gap-2">

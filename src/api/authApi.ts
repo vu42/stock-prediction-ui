@@ -118,7 +118,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     );
   }
 
-  const data: LoginResponse = await response.json();
+  const data: LoginResponse = await response.json();  
   
   // Store both access and refresh tokens
   setStoredToken(data.accessToken);
