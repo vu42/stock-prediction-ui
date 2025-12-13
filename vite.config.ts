@@ -58,5 +58,13 @@ export default defineConfig({
     port: 3000,
     open: false,
     host: "0.0.0.0",
+    proxy: {
+    '/api': {  // Change your frontend API calls to start with /api
+      target: 'http://localhost:8000',
+      changeOrigin: true,
+      secure: false
+    }
+  }
+
   },
 });
