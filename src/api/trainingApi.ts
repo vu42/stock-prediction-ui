@@ -103,10 +103,13 @@ export interface ValidateConfigResponse {
 }
 
 export async function validateTrainingConfig(config: TrainingConfig): Promise<ValidateConfigResponse> {
+  const requestBody = {
+    config,
+  };
   const response = await fetch(`${BASE_URL}/api/v1/features/validate`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ config }),
+    body: JSON.stringify(requestBody),
   });
   return handleResponse<ValidateConfigResponse>(response);
 }

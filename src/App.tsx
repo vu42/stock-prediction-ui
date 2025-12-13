@@ -1,53 +1,121 @@
-import { useState, useEffect } from "react";
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link, useNavigate } from "react-router-dom";
 import { TrainingPage } from "./components/pages/TrainingPage";
 import { PipelinesPage } from "./components/pages/PipelinesPage";
 import { ModelsPage } from "./components/pages/ModelsPage";
 import { HomePage } from "./components/pages/HomePage";
 import { StockDetailPage } from "./components/pages/StockDetailPage";
 import { LoginPage } from "./components/pages/LoginPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Button } from "./components/ui/button";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Loader2 } from 'lucide-react';
 
-type PageType =
-  | "home"
-  | "stock-detail"
-  | "training"
-  | "pipelines"
-  | "models";
+function Navigation() {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-function AppContent() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const [activePage, setActivePage] = useState<PageType>("home");
-  const [selectedTicker, setSelectedTicker] = useState<string>("FPT");
+  const navItems = {
+    end_user: [
+      { path: "/home", label: "Home" },
+      { path: "/stock-detail", label: "Stock Detail" },
+    ],
+    data_scientist: [
+      { path: "/training", label: "Training" },
+      { path: "/pipelines", label: "Pipelines" },
+      { path: "/models", label: "Models" },
+      { path: "/home", label: "Home" },
+      { path: "/stock-detail", label: "Stock Detail" },
+    ],
+  };
 
-  // Set default page based on role when user logs in
-  useEffect(() => {
-    if (user) {
-      if (user.role === "end_user") {
-        setActivePage("home");
-      } else if (user.role === "data_scientist") {
-        setActivePage("training");
-      }
-    }
-  }, [user]);
+  const currentNavItems = navItems[user?.role || "end_user"] || [];
 
   const handleLogout = () => {
     logout();
-    setActivePage("home");
+    navigate("/sign-in");
   };
 
-  const handleNavigateToStock = (ticker: string) => {
-    setSelectedTicker(ticker);
-    setActivePage("stock-detail");
-  };
+  return (
+    <nav className="bg-white border-b border-gray-200 px-8 py-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link
+            to={user?.role === "end_user" ? "/home" : "/training"}
+            className="text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
+          >
+            Stock prediction
+          </Link>
+          <span className="text-sm text-gray-500">
+            {user?.displayName}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {currentNavItems.map((item) => (
+            <Link key={item.path} to={item.path}>
+              <Button
+                variant={
+                  location.pathname === item.path ? "default" : "ghost"
+                }
+              >
+                {item.label}
+              </Button>
+            </Link>
+          ))}
+          <Button
+            variant="ghost"
+            onClick={handleLogout}
+            className="gap-2 ml-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    </nav>
+  );
+}
 
-  const handleNavigateHome = () => {
-    setActivePage("home");
-  };
+function AppLayout() {
+  const { user } = useAuth();
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Toaster />
+      <Navigation />
+      <div
+        className="w-full"
+        style={{ width: "1440px", margin: "0 auto" }}
+      >
+        <Routes>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/stock-detail/:ticker" element={<StockDetailPage />} />
+          <Route path="/stock-detail" element={<StockDetailPage />} />
+          <Route path="/training" element={<TrainingPage />} />
+          <Route path="/pipelines" element={<PipelinesPage />} />
+          <Route path="/models" element={<ModelsPage />} />
+          <Route 
+            path="/" 
+            element={
+              <Navigate 
+                to={user?.role === "end_user" ? "/home" : "/training"} 
+                replace 
+              />
+            } 
+          />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Routes>
+      </div>
+    </div>
+  );
+}
 
-  // Show loading spinner while checking auth
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -56,104 +124,27 @@ function AppContent() {
     );
   }
 
-  // Show login page if not authenticated
-  if (!isAuthenticated || !user) {
-    return <LoginPage />;
-  }
-
-  // Navigation items based on user role
-  const navItems = {
-    end_user: [{ key: "home" as PageType, label: "Home" }],
-    data_scientist: [
-      { key: "training" as PageType, label: "Training" },
-      { key: "pipelines" as PageType, label: "Pipelines" },
-      { key: "models" as PageType, label: "Models" },
-      { key: "home" as PageType, label: "Home" },
-      { key: "stock-detail" as PageType, label: "Stock Detail" },
-    ],
-  };
-
-  const currentNavItems = navItems[user.role] || [];
-
-  const handleLogoClick = () => {
-    if (user.role === "end_user") {
-      setActivePage("home");
-    } else if (user.role === "data_scientist") {
-      setActivePage("training");
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Toaster />
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 px-8 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2
-              className="text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
-              onClick={handleLogoClick}
-            >
-              Stock Prediction
-            </h2>
-            <span className="text-sm text-gray-500">
-              {user.displayName} (
-              {user.role === "end_user"
-                ? "End User"
-                : "Data Scientist"}
-              )
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {currentNavItems.map((item) => (
-              <Button
-                key={item.key}
-                variant={
-                  activePage === item.key ? "default" : "ghost"
-                }
-                onClick={() => setActivePage(item.key)}
-              >
-                {item.label}
-              </Button>
-            ))}
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="gap-2 ml-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Page Content */}
-      <div
-        className="w-full"
-        style={{ width: "1440px", margin: "0 auto" }}
-      >
-        {activePage === "home" && (
-          <HomePage onNavigateToStock={handleNavigateToStock} />
-        )}
-        {activePage === "stock-detail" && (
-          <StockDetailPage
-            ticker={selectedTicker}
-            onNavigateHome={handleNavigateHome}
-          />
-        )}
-        {activePage === "training" && <TrainingPage />}
-        {activePage === "pipelines" && <PipelinesPage />}
-        {activePage === "models" && <ModelsPage />}
-      </div>
-    </div>
+    <Routes>
+      <Route path="/sign-in" element={<LoginPage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider children={<AppContent />}>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

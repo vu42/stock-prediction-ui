@@ -1,12 +1,14 @@
 // Authentication Context and Provider
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { 
   login as apiLogin, 
   logout as apiLogout, 
   getCurrentUser,
   getStoredToken,
+  getStoredRefreshToken,
   getStoredUser,
+  refreshAccessToken,
   type User,
   type LoginRequest,
   AuthApiError
@@ -39,26 +41,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check existing session on mount
+  // Check existing session on mount - always call /me to validate session
   useEffect(() => {
     const initAuth = async () => {
       const token = getStoredToken();
+      const refreshToken = getStoredRefreshToken();
       const storedUser = getStoredUser();
       
-      if (token && storedUser) {
-        // Try to verify token with backend
+      // If we have tokens, always validate session by calling /me
+      if (token || refreshToken) {
+        console.log("initAuth>>> token or refreshToken");
         try {
+          // Try to get current user - this will use authenticatedFetch which handles token refresh automatically
           const currentUser = await getCurrentUser();
+          console.log("initAuth>>> currentUser", currentUser);
+          // Session is valid, set user
           setUser(currentUser);
         } catch (error) {
-          // Token invalid, use stored user as fallback or clear
-          if (error instanceof AuthApiError && error.status === 401) {
-            setUser(null);
+          console.log("initAuth>>> error", error);
+          // /me failed - check if we can refresh
+          if (refreshToken && !token) {
+            // No access token but have refresh token - try to refresh
+            try {
+              const refreshData = await refreshAccessToken();
+              // Refresh successful, try /me again
+              const currentUser = await getCurrentUser();
+              setUser(currentUser);
+            } catch (refreshError) {
+              // Refresh failed - session invalid, clear everything
+              setUser(null);
+            }
           } else {
-            // Network error - use cached user
-            setUser(storedUser);
+            console.log("initAuth>>> no refresh token or token");
+            // /me failed and no refresh token, or refresh already attempted and failed
+            // Session is invalid, clear everything
+            setUser(null);
           }
         }
+      } else if (storedUser) {
+        // Have stored user but no tokens - clear user
+        console.log("initAuth>>> storedUser but no tokens");
+        setUser(null);
+      } else {
+        // No tokens and no stored user - user not logged in
+        console.log("initAuth>>> no tokens and no stored user");
+        setUser(null);
       }
       
       setIsLoading(false);
@@ -72,6 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await apiLogin(credentials);
       setUser(response.user);
       toast.success(`Welcome back, ${response.user.displayName}!`);
+      return response;
     } catch (error) {
       if (error instanceof AuthApiError) {
         toast.error(error.message);
@@ -109,6 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
+  console.log("🐧 > useAuth > context:", context);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
