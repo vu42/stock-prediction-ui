@@ -25,7 +25,7 @@ sudo systemctl restart nginx
 
 ### Access Application:
 ```
-http://13.215.172.15/
+http://13.215.215.232/
 ```
 
 ---
@@ -35,8 +35,8 @@ http://13.215.172.15/
 | Environment | File | API URL | Use Case |
 |------------|------|---------|----------|
 | Local Development | `.env.development` | `http://localhost:8000` | Local dev on your machine |
-| EC2 Development | `.env.development.ec2` | `http://13.215.172.15:8000` | Dev server on EC2 |
-| Production | `.env.production` | `http://13.215.172.15:8000` | Production build |
+| EC2 Development | `.env.development.ec2` | `http://13.215.215.232:8000` | Dev server on EC2 |
+| Production | `.env.production` | `http://13.215.215.232:8000` | Production build |
 
 ---
 
@@ -51,7 +51,7 @@ ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
 ./dev-ec2.sh
 
 # 3. Access at
-# http://13.215.172.15:3000
+# http://13.215.215.232:3000
 ```
 
 ### Keep Running in Background:
@@ -87,11 +87,11 @@ grep -o "13\.215\.172\.15:8000" build/assets/*.js  # Should show EC2 IP
 
 After deployment:
 
-- [ ] Frontend loads at `http://13.215.172.15/`
+- [ ] Frontend loads at `http://13.215.215.232/`
 - [ ] Login page appears
-- [ ] Browser DevTools → Network shows API calls to `http://13.215.172.15:8000/api/v1/...`
+- [ ] Browser DevTools → Network shows API calls to `http://13.215.215.232:8000/api/v1/...`
 - [ ] No CORS errors in console
-- [ ] Backend health check works: `curl http://13.215.172.15:8000/api/v1/health`
+- [ ] Backend health check works: `curl http://13.215.215.232:8000/api/v1/health`
 
 ---
 

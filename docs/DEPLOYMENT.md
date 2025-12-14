@@ -4,7 +4,7 @@
 This guide explains how to configure and deploy the stock prediction UI to connect to the backend API running in Docker containers on your Ubuntu EC2 instance.
 
 ## Problem Summary
-The frontend was hardcoded to use `http://localhost:8000` for API calls, which doesn't work when deployed to EC2 where the backend is accessible at `http://13.215.172.15:8000`.
+The frontend was hardcoded to use `http://localhost:8000` for API calls, which doesn't work when deployed to EC2 where the backend is accessible at `http://13.215.215.232:8000`.
 
 ## Solution Implemented
 We've configured the application to use environment variables for the API base URL, allowing different configurations for development and production.
@@ -13,7 +13,7 @@ We've configured the application to use environment variables for the API base U
 
 ### 1. Environment Configuration Files
 - **`.env.development`**: Contains `VITE_API_BASE_URL=http://localhost:8000` for local development
-- **`.env.production`**: Contains `VITE_API_BASE_URL=http://13.215.172.15:8000` for production deployment
+- **`.env.production`**: Contains `VITE_API_BASE_URL=http://13.215.215.232:8000` for production deployment
 
 ### 2. TypeScript Type Definitions
 - **`src/vite-env.d.ts`**: Added TypeScript definitions for the `VITE_API_BASE_URL` environment variable
@@ -38,7 +38,7 @@ npm run build
 
 This will:
 - Use the `.env.production` file automatically
-- Set `VITE_API_BASE_URL=http://13.215.172.15:8000`
+- Set `VITE_API_BASE_URL=http://13.215.215.232:8000`
 - Create an optimized production build in the `build/` directory
 
 ### Step 2: Deploy to EC2
@@ -111,10 +111,10 @@ Ensure your EC2 security group allows:
 
 Open your browser and navigate to:
 ```
-http://13.215.172.15/
+http://13.215.215.232/
 ```
 
-The frontend should now successfully connect to the backend API at `http://13.215.172.15:8000`.
+The frontend should now successfully connect to the backend API at `http://13.215.215.232:8000`.
 
 ## Troubleshooting
 
@@ -130,12 +130,12 @@ If you encounter CORS errors, ensure your backend API (running in Docker) allows
 
 2. Check if port 8000 is accessible from outside:
    ```bash
-   curl http://13.215.172.15:8000/api/v1/health
+   curl http://13.215.215.232:8000/api/v1/health
    ```
 
 3. Verify the environment variable is being used:
    - Check the browser's Network tab
-   - API calls should go to `http://13.215.172.15:8000/api/...`
+   - API calls should go to `http://13.215.215.232:8000/api/...`
 
 ### Using HTTPS (Recommended for Production)
 
@@ -172,7 +172,7 @@ Instead of hardcoding the EC2 IP, you can use relative URLs and let Nginx proxy 
 ## Development vs Production
 
 - **Development** (`npm run dev`): Uses `.env.development` → connects to `http://localhost:8000`
-- **Production** (`npm run build`): Uses `.env.production` → connects to `http://13.215.172.15:8000`
+- **Production** (`npm run build`): Uses `.env.production` → connects to `http://13.215.215.232:8000`
 
 ## Notes
 

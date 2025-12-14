@@ -50,7 +50,7 @@ If you're running the dev server on EC2 and accessing it from your browser:
    npm run dev:ec2
    ```
 
-3. Access at `http://13.215.172.15:3000`
+3. Access at `http://13.215.215.232:3000`
 
 For detailed instructions, see [docs/EC2_DEV_SERVER.md](docs/EC2_DEV_SERVER.md).
 
@@ -61,7 +61,7 @@ For detailed instructions, see [docs/EC2_DEV_SERVER.md](docs/EC2_DEV_SERVER.md).
    npm run build
    ```
 
-The production build will use `.env.production` and connect to `http://13.215.172.15:8000` for the API.
+The production build will use `.env.production` and connect to `http://13.215.215.232:8000` for the API.
 
 2. Deploy to EC2:
    ```bash
@@ -78,7 +78,7 @@ The application uses environment variables to configure the API base URL:
   - `VITE_API_BASE_URL=http://localhost:8000`
 
 - **`.env.production`**: Used during production build (`npm run build`)
-  - `VITE_API_BASE_URL=http://13.215.172.15:8000`
+  - `VITE_API_BASE_URL=http://13.215.215.232:8000`
 
 To override these settings locally, create a `.env.local` file (gitignored).
 

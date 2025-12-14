@@ -2,7 +2,7 @@
 
 ## ✅ Your Setup is Now Fully Configured!
 
-Your stock prediction UI now works perfectly with your EC2 setup where you run `npm run dev` on the instance and access it via `http://13.215.172.15:3000`.
+Your stock prediction UI now works perfectly with your EC2 setup where you run `npm run dev` on the instance and access it via `http://13.215.215.232:3000`.
 
 ## 🎯 Three Ways to Run the Application
 
@@ -28,8 +28,8 @@ npm run dev:ec2
 # Option C: Manual
 cp .env.development.ec2 .env.development.local && npm run dev
 ```
-- **Access**: `http://13.215.172.15:3000`
-- **API calls**: `http://13.215.172.15:8000`
+- **Access**: `http://13.215.215.232:3000`
+- **API calls**: `http://13.215.215.232:8000`
 - **Use case**: Development on EC2, accessible from your browser
 
 ### 3️⃣ **Production Build** (for deployment)
@@ -37,8 +37,8 @@ cp .env.development.ec2 .env.development.local && npm run dev
 npm run build
 # Then deploy to Nginx
 ```
-- **Access**: `http://13.215.172.15/` (port 80)
-- **API calls**: `http://13.215.172.15:8000`
+- **Access**: `http://13.215.215.232/` (port 80)
+- **API calls**: `http://13.215.215.232:8000`
 - **Use case**: Production deployment
 
 ## 📁 Environment Files Explained
@@ -46,9 +46,9 @@ npm run build
 | File | Purpose | API URL | Committed to Git? |
 |------|---------|---------|-------------------|
 | `.env.development` | Local dev on your machine | `http://localhost:8000` | ✅ Yes |
-| `.env.development.ec2` | Dev server on EC2 | `http://13.215.172.15:8000` | ✅ Yes |
+| `.env.development.ec2` | Dev server on EC2 | `http://13.215.215.232:8000` | ✅ Yes |
 | `.env.development.local` | Auto-generated override | (varies) | ❌ No (gitignored) |
-| `.env.production` | Production builds | `http://13.215.172.15:8000` | ✅ Yes |
+| `.env.production` | Production builds | `http://13.215.215.232:8000` | ✅ Yes |
 
 ## 🚀 Quick Start for EC2 Development
 
@@ -95,16 +95,16 @@ screen -X -S stock-ui-dev quit
 ## 🔧 How It Works
 
 ### The Problem (Before)
-When you ran `npm run dev` on EC2 and accessed `http://13.215.172.15:3000` from your browser:
+When you ran `npm run dev` on EC2 and accessed `http://13.215.215.232:3000` from your browser:
 - Frontend loaded correctly ✅
 - API calls tried to go to `http://localhost:8000` ❌
 - **Failed** because `localhost` in the browser refers to your local machine, not EC2!
 
 ### The Solution (Now)
-1. Created `.env.development.ec2` with `VITE_API_BASE_URL=http://13.215.172.15:8000`
+1. Created `.env.development.ec2` with `VITE_API_BASE_URL=http://13.215.215.232:8000`
 2. Created `dev-ec2.sh` script that copies this to `.env.development.local`
 3. Vite loads `.env.development.local` which overrides `.env.development`
-4. API calls now correctly go to `http://13.215.172.15:8000` ✅
+4. API calls now correctly go to `http://13.215.215.232:8000` ✅
 
 ### Environment Loading Order
 Vite loads files in this order (later overrides earlier):
@@ -150,9 +150,9 @@ curl http://localhost:8000/api/v1/health
 ```
 
 ### 3. Check from Browser
-1. Open `http://13.215.172.15:3000`
+1. Open `http://13.215.215.232:3000`
 2. Open DevTools → Network tab
-3. Verify API calls go to `http://13.215.172.15:8000/api/v1/...`
+3. Verify API calls go to `http://13.215.215.232:8000/api/v1/...`
 4. Check for successful responses (200 status codes)
 
 ## 🛠️ Troubleshooting
@@ -172,11 +172,11 @@ curl http://localhost:8000/api/v1/health
 ```bash
 # Verify the environment file
 cat .env.development.local
-# Should show: VITE_API_BASE_URL=http://13.215.172.15:8000
+# Should show: VITE_API_BASE_URL=http://13.215.215.232:8000
 ```
 
 ### Issue: CORS errors
-**Solution**: Update backend CORS settings to allow `http://13.215.172.15:3000`
+**Solution**: Update backend CORS settings to allow `http://13.215.215.232:3000`
 
 ### Issue: Changes not reflecting
 **Solution**: Hard refresh browser
@@ -194,7 +194,7 @@ cat .env.development.local
 ### Why Different Environment Files?
 
 **Browser vs Server Context:**
-- When you access `http://13.215.172.15:3000`, the JavaScript runs **in your browser**
+- When you access `http://13.215.215.232:3000`, the JavaScript runs **in your browser**
 - API calls from the browser need to use the **public IP** (`13.215.172.15:8000`)
 - `localhost` in the browser would try to connect to **your local machine**, not EC2!
 

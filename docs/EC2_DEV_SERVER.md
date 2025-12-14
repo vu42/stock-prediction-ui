@@ -32,7 +32,7 @@ This guide explains how to run the Vite development server (`npm run dev`) direc
 
 4. Access the application in your browser:
    ```
-   http://13.215.172.15:3000
+   http://13.215.215.232:3000
    ```
 
 ### Option 2: Manual Setup
@@ -52,7 +52,7 @@ This guide explains how to run the Vite development server (`npm run dev`) direc
    npm run dev
    ```
 
-4. Access at `http://13.215.172.15:3000`
+4. Access at `http://13.215.215.232:3000`
 
 ## How It Works
 
@@ -70,8 +70,8 @@ Vite loads environment files in this order (later files override earlier ones):
 | Scenario | Environment File | API URL | Access URL |
 |----------|-----------------|---------|------------|
 | **Local Development** | `.env.development` | `http://localhost:8000` | `http://localhost:3000` |
-| **EC2 Development** | `.env.development.ec2` | `http://13.215.172.15:8000` | `http://13.215.172.15:3000` |
-| **Production Build** | `.env.production` | `http://13.215.172.15:8000` | `http://13.215.172.15/` |
+| **EC2 Development** | `.env.development.ec2` | `http://13.215.215.232:8000` | `http://13.215.215.232:3000` |
+| **Production Build** | `.env.production` | `http://13.215.215.232:8000` | `http://13.215.215.232/` |
 
 ### Why We Need Different Configs
 
@@ -81,7 +81,7 @@ Vite loads environment files in this order (later files override earlier ones):
 
 **EC2 Development (`13.215.172.15:8000`):**
 - Frontend runs on EC2, accessed from your browser
-- Your browser needs to call `http://13.215.172.15:8000` (not `localhost`)
+- Your browser needs to call `http://13.215.215.232:8000` (not `localhost`)
 - `localhost` in the browser would refer to your local machine, not EC2!
 
 ## Vite Configuration
@@ -179,7 +179,7 @@ curl http://localhost:3000
 ```bash
 # Check the output when starting dev server
 # Should show: "Local: http://localhost:3000/"
-#              "Network: http://13.215.172.15:3000/"
+#              "Network: http://13.215.215.232:3000/"
 ```
 
 ### Issue: API calls fail
@@ -193,12 +193,12 @@ curl http://localhost:8000/api/v1/health
 **Check 2: Is port 8000 accessible?**
 ```bash
 # From your local machine
-curl http://13.215.172.15:8000/api/v1/health
+curl http://13.215.215.232:8000/api/v1/health
 ```
 
 **Check 3: Check browser console**
 - Open DevTools → Network tab
-- Verify API calls go to `http://13.215.172.15:8000/api/v1/...`
+- Verify API calls go to `http://13.215.215.232:8000/api/v1/...`
 - Check for CORS errors
 
 ### Issue: Changes not reflecting
@@ -309,7 +309,7 @@ This way, ports 3000 and 8000 don't need to be exposed in the security group!
 ## Summary
 
 - ✅ **Use `./dev-ec2.sh`** when running dev server on EC2
-- ✅ **Access at** `http://13.215.172.15:3000`
-- ✅ **API calls go to** `http://13.215.172.15:8000`
+- ✅ **Access at** `http://13.215.215.232:3000`
+- ✅ **API calls go to** `http://13.215.215.232:8000`
 - ✅ **Use `screen` or `tmux`** to keep server running
 - ✅ **For production**, use `npm run build` and Nginx

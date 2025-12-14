@@ -19,7 +19,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 #### `.env.production`
 ```env
-VITE_API_BASE_URL=http://13.215.172.15:8000
+VITE_API_BASE_URL=http://13.215.215.232:8000
 ```
 - Used during production build (`npm run build`)
 - Connects to EC2 backend at the public IP address
@@ -100,10 +100,10 @@ npm run dev
 npm run build
 ```
 1. Vite loads `.env.production`
-2. Sets `VITE_API_BASE_URL=http://13.215.172.15:8000`
+2. Sets `VITE_API_BASE_URL=http://13.215.215.232:8000`
 3. Bundles the application with this URL hardcoded
 4. Output in `build/` directory is ready for deployment
-5. All API calls will go to `http://13.215.172.15:8000/api/v1/...`
+5. All API calls will go to `http://13.215.215.232:8000/api/v1/...`
 
 ## Deployment Workflow
 
@@ -125,7 +125,7 @@ npm run build
 
 4. **Access the application:**
    ```
-   http://13.215.172.15/
+   http://13.215.215.232/
    ```
 
 ## Backend Requirements
@@ -155,17 +155,17 @@ After deployment, verify:
 
 1. **Frontend loads:**
    ```
-   http://13.215.172.15/
+   http://13.215.215.232/
    ```
 
 2. **API connectivity:**
    - Open browser DevTools → Network tab
-   - Verify API calls go to `http://13.215.172.15:8000/api/v1/...`
+   - Verify API calls go to `http://13.215.215.232:8000/api/v1/...`
    - Check for successful responses (200 status codes)
 
 3. **Backend health:**
    ```bash
-   curl http://13.215.172.15:8000/api/v1/health
+   curl http://13.215.215.232:8000/api/v1/health
    ```
 
 ## Future Improvements
@@ -184,7 +184,7 @@ After deployment, verify:
 
 ### Issue: CORS errors
 - **Cause:** Backend not configured to allow frontend origin
-- **Solution:** Update backend CORS settings to allow `http://13.215.172.15`
+- **Solution:** Update backend CORS settings to allow `http://13.215.215.232`
 
 ### Issue: 404 on page refresh
 - **Cause:** Nginx not configured for SPA routing
