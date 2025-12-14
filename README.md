@@ -34,6 +34,26 @@ A modern web application mockup for stock market prediction and analysis using m
 
 The development server will use `.env.development` and connect to `http://localhost:8000` for the API.
 
+### EC2 Development Server
+
+If you're running the dev server on EC2 and accessing it from your browser:
+
+1. SSH to your EC2 instance:
+   ```bash
+   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+   ```
+
+2. Start the EC2 dev server:
+   ```bash
+   ./dev-ec2.sh
+   # or
+   npm run dev:ec2
+   ```
+
+3. Access at `http://13.215.172.15:3000`
+
+For detailed instructions, see [docs/EC2_DEV_SERVER.md](docs/EC2_DEV_SERVER.md).
+
 ### Production Build
 
 1. Build the production bundle:

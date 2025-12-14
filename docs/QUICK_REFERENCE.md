@@ -32,10 +32,38 @@ http://13.215.172.15/
 
 ## 📋 Environment Variables
 
-| Environment | File | API URL |
-|------------|------|---------|
-| Development | `.env.development` | `http://localhost:8000` |
-| Production | `.env.production` | `http://13.215.172.15:8000` |
+| Environment | File | API URL | Use Case |
+|------------|------|---------|----------|
+| Local Development | `.env.development` | `http://localhost:8000` | Local dev on your machine |
+| EC2 Development | `.env.development.ec2` | `http://13.215.172.15:8000` | Dev server on EC2 |
+| Production | `.env.production` | `http://13.215.172.15:8000` | Production build |
+
+---
+
+## 🖥️ Running Dev Server on EC2
+
+### Quick Start:
+```bash
+# 1. SSH to EC2
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+
+# 2. Run dev server
+./dev-ec2.sh
+
+# 3. Access at
+# http://13.215.172.15:3000
+```
+
+### Keep Running in Background:
+```bash
+# Using screen
+screen -S stock-ui-dev
+./dev-ec2.sh
+# Press Ctrl+A, then D to detach
+
+# Reattach later
+screen -r stock-ui-dev
+```
 
 ---
 
