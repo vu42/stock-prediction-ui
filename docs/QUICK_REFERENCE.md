@@ -8,7 +8,7 @@
 npm run build
 
 # 2. Transfer to EC2
-scp -r build/* ubuntu@13.215.172.15:/tmp/stock-ui/
+scp -r build/* ubuntu@13.215.215.232:/tmp/stock-ui/
 ```
 
 ### On EC2 Instance:
@@ -45,7 +45,7 @@ http://13.215.215.232/
 ### Quick Start:
 ```bash
 # 1. SSH to EC2
-ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
 
 # 2. Run dev server
 ./dev-ec2.sh

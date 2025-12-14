@@ -17,7 +17,7 @@ npm run dev
 ### 2️⃣ **EC2 Development Server** (your current setup)
 ```bash
 # SSH to EC2
-ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
 
 # Option A: Use the helper script
 ./dev-ec2.sh
@@ -55,7 +55,7 @@ npm run build
 ### First Time Setup (on EC2):
 ```bash
 # 1. SSH to EC2
-ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
 
 # 2. Navigate to project
 cd /path/to/stock-prediction-ui
@@ -73,7 +73,7 @@ chmod +x dev-ec2.sh deploy.sh
 ### Daily Usage:
 ```bash
 # SSH and run
-ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
 cd /path/to/stock-prediction-ui
 ./dev-ec2.sh
 ```
@@ -123,8 +123,8 @@ Vite loads files in this order (later overrides earlier):
 | Aspect | Local Dev | EC2 Dev Server | Production Build |
 |--------|-----------|----------------|------------------|
 | **Command** | `npm run dev` | `./dev-ec2.sh` | `npm run build` |
-| **Access URL** | `localhost:3000` | `13.215.172.15:3000` | `13.215.172.15` |
-| **API URL** | `localhost:8000` | `13.215.172.15:8000` | `13.215.172.15:8000` |
+| **Access URL** | `localhost:3000` | `13.215.215.232:3000` | `13.215.215.232` |
+| **API URL** | `localhost:8000` | `13.215.215.232:8000` | `13.215.215.232:8000` |
 | **Hot Reload** | ✅ Yes | ✅ Yes | ❌ No |
 | **Optimized** | ❌ No | ❌ No | ✅ Yes |
 | **Port** | 3000 | 3000 | 80 (Nginx) |
@@ -195,7 +195,7 @@ cat .env.development.local
 
 **Browser vs Server Context:**
 - When you access `http://13.215.215.232:3000`, the JavaScript runs **in your browser**
-- API calls from the browser need to use the **public IP** (`13.215.172.15:8000`)
+- API calls from the browser need to use the **public IP** (`13.215.215.232:8000`)
 - `localhost` in the browser would try to connect to **your local machine**, not EC2!
 
 **Development vs Production:**

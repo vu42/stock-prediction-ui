@@ -114,7 +114,7 @@ npm run build
 
 2. **Transfer to EC2 (if built locally):**
    ```bash
-   scp -r build/* ubuntu@13.215.172.15:/tmp/stock-ui/
+   scp -r build/* ubuntu@13.215.215.232:/tmp/stock-ui/
    ```
 
 3. **Deploy on EC2:**

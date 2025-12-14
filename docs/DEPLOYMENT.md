@@ -67,7 +67,7 @@ Add this configuration:
 ```nginx
 server {
     listen 80;
-    server_name 13.215.172.15;
+    server_name 13.215.215.232;
     root /var/www/html;
     index index.html;
 

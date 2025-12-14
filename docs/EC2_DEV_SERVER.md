@@ -6,10 +6,10 @@ This guide explains how to run the Vite development server (`npm run dev`) direc
 
 ## Your Current Setup
 
-- **EC2 IP**: `13.215.172.15`
+- **EC2 IP**: `13.215.215.232`
 - **Frontend Port**: `3000` (exposed in security group)
 - **Backend Port**: `8000` (Docker container)
-- **SSH Command**: `ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15`
+- **SSH Command**: `ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232`
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ This guide explains how to run the Vite development server (`npm run dev`) direc
 
 1. SSH to your EC2 instance:
    ```bash
-   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
    ```
 
 2. Navigate to the project directory:
@@ -39,7 +39,7 @@ This guide explains how to run the Vite development server (`npm run dev`) direc
 
 1. SSH to EC2:
    ```bash
-   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
    ```
 
 2. Copy the EC2 environment file:
@@ -79,7 +79,7 @@ Vite loads environment files in this order (later files override earlier ones):
 - Both frontend and backend run on your local machine
 - API calls to `localhost:8000` work because it's the same machine
 
-**EC2 Development (`13.215.172.15:8000`):**
+**EC2 Development (`13.215.215.232:8000`):**
 - Frontend runs on EC2, accessed from your browser
 - Your browser needs to call `http://13.215.215.232:8000` (not `localhost`)
 - `localhost` in the browser would refer to your local machine, not EC2!
@@ -244,7 +244,7 @@ npm run dev
 
 ```bash
 # SSH to EC2
-ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
 
 # Start dev server (quick)
 ./dev-ec2.sh
@@ -294,7 +294,7 @@ Instead of exposing port 3000, you can use SSH port forwarding:
 ssh -i ~/.ssh/id_ed25519_stock_prediction \
     -L 3000:localhost:3000 \
     -L 8000:localhost:8000 \
-    stock-prediction-vu@13.215.172.15
+    stock-prediction-vu@13.215.215.232
 
 # Then on EC2, run dev server with localhost binding
 # Modify vite.config.ts temporarily: host: "localhost"

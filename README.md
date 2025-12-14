@@ -40,7 +40,7 @@ If you're running the dev server on EC2 and accessing it from your browser:
 
 1. SSH to your EC2 instance:
    ```bash
-   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.172.15
+   ssh -i ~/.ssh/id_ed25519_stock_prediction stock-prediction-vu@13.215.215.232
    ```
 
 2. Start the EC2 dev server:
