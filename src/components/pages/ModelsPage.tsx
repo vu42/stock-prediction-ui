@@ -24,8 +24,6 @@ const vn30CompanyNames: Record<string, string> = {
   'VHM': 'Vinhomes',
   'MSN': 'Masan Group',
   'SAB': 'Sabeco',
-  'TCB': 'Techcombank',
-  'GAS': 'PetroVietnam Gas',
 };
 
 // Format percentage to 2 decimal places
@@ -75,14 +73,17 @@ export function ModelsPage() {
     try {
       const response = await fetchModels();
       
-      if (response.length === 0) {
+      // Filter to only include stocks in VN30
+      const vn30Models = response.filter((model) => model.ticker in vn30CompanyNames);
+      
+      if (vn30Models.length === 0) {
         setViewState('empty');
         setModelData([]);
         return;
       }
 
       // Transform API response to UI format
-      const transformedData: ModelData[] = response.map((model) => ({
+      const transformedData: ModelData[] = vn30Models.map((model) => ({
         ticker: model.ticker,
         companyName: vn30CompanyNames[model.ticker] || model.ticker,
         lastTrained: formatDistanceToNow(new Date(model.lastTrained), { addSuffix: true }),
